@@ -27,10 +27,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".CameraActivity"
             android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.Translucent" />
+
+        <meta-data
+            android:name="com.google.firebase.ml.vision.DEPENDENCIES"
+            android:value="face" />
+
+        <activity
+            android:name=".ml.CameraMLActivity"
+            android:label="@string/title_activity_camera_ml"
             android:theme="@style/AppTheme.Translucent"></activity>
     </application>
 

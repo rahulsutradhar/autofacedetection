@@ -266,19 +266,6 @@ public class CameraActivity extends AppCompatActivity {
             }
 
             try {
-                //convert byte array to bitmap
-               /* Bitmap bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
-
-                Matrix matrix = new Matrix();
-                matrix.postRotate(90F);
-                Bitmap newBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-
-                //convert bitmap to byte array
-                int bytes = newBitmap.getByteCount();
-                ByteBuffer buffer = ByteBuffer.allocate(bytes); //Create a new buffer
-                newBitmap.copyPixelsToBuffer(buffer);
-                byte[] array = buffer.array();*/
-
 
                 FileOutputStream fos = new FileOutputStream(pictureFile);
                 fos.write(imageData);

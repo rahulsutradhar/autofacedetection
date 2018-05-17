@@ -27,5 +27,11 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:0.5'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:2.2.2'
 
-    compile 'org.greenrobot:eventbus:3.1.1'
+    implementation 'org.greenrobot:eventbus:3.1.1'
+
+    implementation 'com.google.firebase:firebase-core:15.0.2';
+    implementation 'com.google.firebase:firebase-ml-vision:15.0.0'
 }
+
+
+apply plugin: 'com.google.gms.google-services'

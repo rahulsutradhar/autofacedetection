@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "752818382388",
+    "firebase_url": "https://faace-detection.firebaseio.com",
+    "project_id": "faace-detection",
+    "storage_bucket": "faace-detection.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752818382388:android:aae80afa7c0c4c48",
+        "android_client_info": {
+          "package_name": "test.in.mygate.cameraapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "752818382388-75he8feeae7d2eeleqejlkbi13o0ee8s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAO8Dgq1nmpoMdfBgFJBG3n0FJy9-rzUzc"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
