@@ -80,7 +80,7 @@ public class CameraMLActivity extends AppCompatActivity {
         mCamera = GeneralHelper.getCameraInstance();
 
         // Create our Preview view and set it as the content of our activity.
-        mMLPreview = new CameraMLPreview(this, mCamera);
+        mMLPreview = new CameraMLPreview(this, this, mCamera);
         cameraPreviewLayout.addView(mMLPreview);
     }
 

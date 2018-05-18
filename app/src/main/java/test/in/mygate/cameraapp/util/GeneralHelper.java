@@ -1,5 +1,6 @@
 package test.in.mygate.cameraapp.util;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -99,27 +100,4 @@ public class GeneralHelper {
             context.sendBroadcast(intent);
         }
     }
-
-
-    public static int getZoomValue( int facePercentage ) {
-        int zoomValue = 0;
-        int maxZoomAllowed = (int) Math.round(AppConstant.MAX_ZOOM_CAMERA / 3);
-        int zoomRatio = (int) Math.round(maxZoomAllowed / 5);
-
-
-        if ( facePercentage <= 5 ) {
-            zoomValue = (int) Math.round(zoomRatio * 5);
-        } else if ( facePercentage <= 10 ) {
-            zoomValue = (int) Math.round(zoomRatio * 4);
-        } else if ( facePercentage <= 15 ) {
-            zoomValue = (int) Math.round(zoomRatio * 3);
-        } else if ( facePercentage <= 20 ) {
-            zoomValue = (int) Math.round(zoomRatio * 2);
-        } else if ( facePercentage <= 25 ) {
-            zoomValue = (int) Math.round(zoomRatio * 1);
-        }
-
-        return zoomValue;
-    }
-
 }
