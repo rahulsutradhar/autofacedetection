@@ -12,13 +12,15 @@
 
         <FrameLayout
             android:id="@+id/camera_preview"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
             android:layout_above="@+id/camera_control_layout">
 
 
         </FrameLayout>
 
+
+        <!-- Controls -->
         <LinearLayout
             android:id="@+id/camera_control_layout"
             android:layout_width="match_parent"

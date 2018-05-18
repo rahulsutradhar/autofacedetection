@@ -17,4 +17,7 @@ public class AppConstant {
 
     public static volatile boolean IS_FACE_DETECTED = false;
 
+    public static int WIDTH_PREVIEW = 0;
+    public static int HEIGHT_PREVIEW = 0;
+
 }
