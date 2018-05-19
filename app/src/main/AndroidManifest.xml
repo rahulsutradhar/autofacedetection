@@ -39,6 +39,7 @@
         <activity
             android:name=".ml.CameraMLActivity"
             android:label="@string/title_activity_camera_ml"
+            android:screenOrientation="portrait"
             android:theme="@style/AppTheme.Translucent"></activity>
     </application>
 

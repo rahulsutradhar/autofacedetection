@@ -2,7 +2,9 @@ package test.in.mygate.cameraapp.util.ml;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.hardware.Camera;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -23,6 +25,7 @@ import java.io.IOException;
 import java.util.List;
 
 import test.in.mygate.cameraapp.util.AppConstant;
+import test.in.mygate.cameraapp.util.GeneralHelper;
 
 /**
  * Created by developers on 17/05/18.
@@ -34,13 +37,13 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private static final String TAG = CameraMLPreview.class.getName().toString();
     private SurfaceHolder mHolder;
     private Camera mCamera;
-    private List<Camera.Size> mSupportedPreviewSizes;
-    private Camera.Size mPreviewSize;
+    private volatile List<Camera.Size> mSupportedPreviewSizes;
+    private volatile Camera.Size mPreviewSize;
     private Context mContext;
     private Activity mActivity;
 
-    private boolean isPreviewRunning = false;
-    private volatile boolean isFrameCaptured = true;
+    private volatile boolean isPreviewRunning = false;
+    private int cameraId = -1;
 
     // for checking the orientation
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
@@ -56,6 +59,9 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private FirebaseVisionFaceDetectorOptions options;
     private FirebaseVisionImageMetadata metadata;
     private FirebaseVisionFaceDetector detector;
+
+    private FaceDetectedInFrame faceDetectedInFrame;
+    private NoFaceDetectedInFrame noFaceDetectedInFrame;
 
     /**
      * Constructor
@@ -82,9 +88,12 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         // deprecated setting, but required on Android versions prior to 3.0
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_NORMAL);
 
+
         //this creates the firebase detector instance once
         getFirebaseVisionFaceDetector();
 
+        faceDetectedInFrame = (FaceDetectedInFrame) context;
+        noFaceDetectedInFrame = (NoFaceDetectedInFrame) context;
     }
 
     @Override
@@ -100,24 +109,32 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
             AppConstant.WIDTH_PREVIEW = mPreviewSize.width;
             AppConstant.HEIGHT_PREVIEW = mPreviewSize.height;
-            Log.i(TAG, "Size set - Width: " + mPreviewSize.width + "  Height: " + mPreviewSize.height);
+            Log.i(TAG, "onSurfaceCreated - FRAME SIZE SET - Width: " + mPreviewSize.width +
+                    "  Height: " + mPreviewSize.height);
 
             mCamera.setPreviewDisplay(holder);
 
             AppConstant.FOCAL_LENGHT = mCamera.getParameters().getFocalLength();
-            AppConstant.MAX_ZOOM_CAMERA = mCamera.getParameters().getMaxZoom();
+            AppConstant.MAX_ZOOM_CAMERA = (int) Math.round((mCamera.getParameters().getMaxZoom() * 2) / 3);
 
             Log.i(TAG, "Focal length : " + AppConstant.FOCAL_LENGHT +
                     "\nMax Zoom Available : " + AppConstant.MAX_ZOOM_CAMERA);
 
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
+            if ( Build.VERSION.SDK_INT > 17 ) {
+                mCamera.enableShutterSound(true);
+            }
             mCamera.setParameters(parameters);
-            mCamera.setDisplayOrientation(90);
+            mCamera.setDisplayOrientation(GeneralHelper
+                    .getCameraDisplayOrientation(mActivity, getBackFacingCameraId()));
             mCamera.setPreviewCallback(this);
             requestLayout();
             isPreviewRunning = true;
             mCamera.startPreview();
+
+            //this stores the area of the camera preview and face end points
+            calculateOptimalArea();
 
         } catch ( IOException e ) {
             Log.d(TAG, "Error setting camera preview: " + e.getMessage());
@@ -152,12 +169,18 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             try {
                 AppConstant.WIDTH_PREVIEW = mPreviewSize.width;
                 AppConstant.HEIGHT_PREVIEW = mPreviewSize.height;
-                Log.i(TAG, "Size set - Width: " + mPreviewSize.width + "  Height: " + mPreviewSize.height);
+
+                Log.i(TAG, "onSurfaceChanged - FRAME SIZE SET - Width: " + mPreviewSize.width +
+                        "  Height: " + mPreviewSize.height);
 
                 Camera.Parameters parameters = mCamera.getParameters();
                 parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
+                if ( Build.VERSION.SDK_INT > 17 ) {
+                    mCamera.enableShutterSound(true);
+                }
                 mCamera.setParameters(parameters);
-                mCamera.setDisplayOrientation(90);
+                mCamera.setDisplayOrientation(GeneralHelper
+                        .getCameraDisplayOrientation(mActivity, getBackFacingCameraId()));
                 mCamera.setPreviewCallback(this);
                 mCamera.setPreviewDisplay(mHolder);
                 requestLayout();
@@ -184,7 +207,6 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                     mCamera.stopPreview();
                     mCamera.release();
                 }
-
             } catch ( Exception e ) {
 
             }
@@ -262,6 +284,27 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     }
 
     /**
+     * Returns the camera ID for the Back Facing camera
+     *
+     * @return
+     */
+    private int getBackFacingCameraId() {
+        if ( mCamera != null ) {
+            for ( int i = 0; i < mCamera.getNumberOfCameras(); i++ ) {
+                Camera.CameraInfo info = new Camera.CameraInfo();
+                Camera.getCameraInfo(i, info);
+                if ( info.facing == Camera.CameraInfo.CAMERA_FACING_BACK ) {
+                    Log.d(TAG, "Camera found Back ID : " + i);
+                    cameraId = i;
+                    break;
+                }
+            }
+        }
+
+        return cameraId;
+    }
+
+    /**
      * Preview Callback, this returns each frame
      *
      * @param data
@@ -285,19 +328,20 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                      * Capture the Frame only when it is TRUE
                      * and lock it until its FALSE
                      */
-                    Log.i(TAG, "isFrameCapture : " + isFrameCaptured);
-                    if ( isFrameCaptured ) {
-                        Log.i(TAG, "isFrameCapture : " + isFrameCaptured);
+                    Log.i(TAG, "isFrameCapture : " + AppConstant.IS_FRAME_CAPTURED);
+                    if ( AppConstant.IS_FRAME_CAPTURED ) {
+                        Log.i(TAG, "isFrameCapture --> Has Captured : " + AppConstant.IS_FRAME_CAPTURED);
                         //capture so lock it by setting false
-                        isFrameCaptured = false;
-                        letFirebaseDetectFace(data);
+                        AppConstant.IS_FRAME_CAPTURED = false;
+
+                        letFirebaseMLDetectFace(data);
                     }
                 }
             }
         } catch ( NullPointerException npe ) {
-
+            npe.printStackTrace();
         } catch ( Exception e ) {
-
+            e.printStackTrace();
         }
     }
 
@@ -306,7 +350,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
      *
      * @param data
      */
-    private synchronized void letFirebaseDetectFace( byte[] data ) {
+    private synchronized void letFirebaseMLDetectFace( byte[] data ) {
 
         getFirebaseVisionFaceDetector().detectInImage(getFirebaseVisionImage(data))
                 .addOnSuccessListener(new OnSuccessListener<List<FirebaseVisionFace>>() {
@@ -315,19 +359,30 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                         Log.i(TAG, "FaceDetected Success Callback");
                         if ( firebaseVisionFaces != null ) {
                             if ( firebaseVisionFaces.size() > 0 ) {
+
+                                //TODO handle Face detected here
                                 Log.i(TAG, "FaceDetected: " + firebaseVisionFaces.get(0).getBoundingBox());
+
+                                //handle face recognization
+                                handleFaceDetected(firebaseVisionFaces);
+
+                            } else {
+                                //TODO handle no face detected here
+                                //handle NO face recognization
+                                handleNoFaceDetected();
                             }
+                        } else {
+                            //handle NO face recognization
+                            handleNoFaceDetected();
                         }
-
-                        isFrameCaptured = true;
-
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure( @NonNull Exception e ) {
                         Log.e(TAG, "FaceDetected ERROR Callback:  " + e.getMessage());
-                        isFrameCaptured = true;
+                        //handle NO face recognization
+                        handleNoFaceDetected();
                     }
                 });
     }
@@ -379,8 +434,8 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private FirebaseVisionImageMetadata getFirebaseVisionImageMetadata() {
         if ( metadata == null ) {
             metadata = new FirebaseVisionImageMetadata.Builder()
-                    .setWidth(AppConstant.WIDTH_PREVIEW)
-                    .setHeight(AppConstant.HEIGHT_PREVIEW)
+                    .setWidth(mPreviewSize.width)
+                    .setHeight(mPreviewSize.height)
                     .setFormat(FirebaseVisionImageMetadata.IMAGE_FORMAT_NV21)
                     .setRotation(getRotationCompensation())
                     .build();
@@ -389,7 +444,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     }
 
     /**
-     * Calcutate the Rotataion
+     * Calculate the Rotation
      *
      * @return
      */
@@ -399,17 +454,15 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         // Get the device's current rotation relative to its "native" orientation.
         // Then, from the ORIENTATIONS table, look up the angle the image must be
         // rotated to compensate for the device's rotation.
-        int deviceRotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
-        int rotationCompensation = ORIENTATIONS.get(deviceRotation);
+        /*int deviceRotation = mActivity.getWindowManager().getDefaultDisplay().getRotation();
+        int rotationCompensation = ORIENTATIONS.get(deviceRotation);*/
 
         //TODO: need to refactor this rotation according to the camera sensor rotation
         // On most devices, the sensor orientation is 90 degrees, but for some
         // devices it is 270 degrees. For devices with a sensor orientation of
         // 270, rotate the image an additional 180 ((270 + 270) % 360) degrees.
 
-        Log.i(TAG, "ROTATION VALUE : Device : " + deviceRotation + "  Compensation : " + rotationCompensation);
-
-        switch ( rotationCompensation ) {
+        switch ( GeneralHelper.getCameraDisplayOrientation(mActivity, getBackFacingCameraId()) ) {
             case 0:
                 result = FirebaseVisionImageMetadata.ROTATION_0;
                 break;
@@ -427,5 +480,55 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         }
 
         return result;
+    }
+
+
+    /**
+     * Helper method to display message and zoom,
+     * which is passed to the activity and it is handle there
+     */
+
+    /**
+     * Hanlde when atleast one face is detected
+     *
+     * @param firebaseVisionFaces
+     */
+    private void handleFaceDetected( List<FirebaseVisionFace> firebaseVisionFaces ) {
+        faceDetectedInFrame.faceDetected(firebaseVisionFaces);
+    }
+
+    /**
+     * Handle when no face is detected
+     * this is passed in the activity class
+     */
+    private void handleNoFaceDetected() {
+        noFaceDetectedInFrame.noFaceDetected();
+    }
+
+    /**
+     * This Calculates the end area points of frame and the facial
+     */
+    private void calculateOptimalArea() {
+        AppConstant.AREA_OF_FRAME = (AppConstant.WIDTH_PREVIEW * AppConstant.HEIGHT_PREVIEW);
+        AppConstant.MIN_FACIAL_AREA = (int) Math.round((AppConstant.AREA_OF_FRAME * 8) / 100);
+        AppConstant.MAX_FACIAL_AREA = (int) Math.round((AppConstant.AREA_OF_FRAME * 16) / 100);
+
+        Log.i(TAG, "AREA OF FRAME : " + AppConstant.AREA_OF_FRAME +
+                "\nMIN FACIAL AREA : " + AppConstant.MIN_FACIAL_AREA +
+                "\nMAX FACIAL AREA : " + AppConstant.MAX_FACIAL_AREA);
+
+    }
+
+    @Override
+    protected void onDraw( Canvas canvas ) {
+        super.onDraw(canvas);
+    }
+
+    public boolean isPreviewRunning() {
+        return isPreviewRunning;
+    }
+
+    public void setPreviewRunning( boolean previewRunning ) {
+        isPreviewRunning = previewRunning;
     }
 }
