@@ -17,7 +17,7 @@
     <LinearLayout
         android:id="@+id/face_status_layout"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="5dp"
         android:background="@android:color/transparent"
         android:orientation="vertical"
@@ -32,7 +32,7 @@
             android:padding="2dp"
             android:text=""
             android:textColor="#fff"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/face_direction_status"
@@ -43,7 +43,7 @@
             android:padding="2dp"
             android:text="Please put face inside the frame"
             android:textColor="#fff"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/face_center_focused"
@@ -54,18 +54,18 @@
             android:padding="2dp"
             android:text="Face Need to be focused at Center Point"
             android:textColor="#fff"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
         <TextView
-            android:id="@+id/face_tilt_status"
+            android:id="@+id/face_current_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:gravity="center_horizontal"
             android:padding="2dp"
-            android:text=""
+            android:text="Face need to be Straight"
             android:textColor="#fff"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
     </LinearLayout>
 
@@ -90,8 +90,7 @@
             android:gravity="center_horizontal"
             android:padding="5dp"
             android:textColor="#fff"
-            android:textSize="16sp"
-            android:visibility="invisible" />
+            android:textSize="13sp" />
 
 
         <LinearLayout

@@ -3,6 +3,7 @@ package test.in.mygate.cameraapp.ml;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -43,7 +44,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     private Button discardButton, saveButton;
     private TextView textFaceDetectStatus;
     private TextView textFaceAreaStatus, textFaceDirectionStatus;
-    private TextView textFaceTiltStatus, textFaceFocusStatus;
+    private TextView textFaceCurrentStatus, textFaceFocusStatus;
 
     private CameraMLActivity cameraMLActivity;
 
@@ -53,6 +54,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
 
 
     private volatile int cameraZoomLabel = 0;
+
+    private volatile int countConditionProbability = 0;
 
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
@@ -76,7 +79,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         faceStatusLayout = (LinearLayout) findViewById(R.id.face_status_layout);
         textFaceAreaStatus = (TextView) findViewById(R.id.face_area_status);
         textFaceDirectionStatus = (TextView) findViewById(R.id.face_direction_status);
-        textFaceTiltStatus = (TextView) findViewById(R.id.face_tilt_status);
+        textFaceCurrentStatus = (TextView) findViewById(R.id.face_current_status);
         textFaceFocusStatus = (TextView) findViewById(R.id.face_center_focused);
 
         textFaceAreaStatus.setText("Face need to cover " + AppConstant.MIN_FACE_PERCENT +
@@ -175,18 +178,14 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         startCameraPreview();
         //reset the capture lock variable
         AppConstant.LOCK_FRAME = true;
-        AppConstant.MAX_FACIAL_AREA = 0;
-        AppConstant.MIN_FACIAL_AREA = 0;
-        AppConstant.HEIGHT_PREVIEW = 0;
-        AppConstant.WIDTH_PREVIEW = 0;
 
         //set the zoom label to 0
         cameraZoomLabel = 0;
+        countConditionProbability = 0;
 
         //update UI
-        afterClickedLayout.setVisibility(View.INVISIBLE);
         textFaceDetectStatus.setText("");
-        textFaceDetectStatus.setVisibility(View.INVISIBLE);
+        afterClickedLayout.setVisibility(View.INVISIBLE);
     }
 
     @Override
@@ -195,8 +194,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         AppConstant.LOCK_FRAME = true;
 
         //update the status in frame
-        textFaceDetectStatus.setText("");
-        textFaceDetectStatus.setVisibility(View.INVISIBLE);
+        textFaceDetectStatus.setText("No Face detected");
+        textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_red));
         afterClickedLayout.setVisibility(View.INVISIBLE);
     }
 
@@ -208,14 +207,18 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         //calculate facial area for 1-face
         Log.i(TAG, "Face Co-Ordinate: " + firebaseVisionFace.get(0).getBoundingBox());
 
-        //check and update the zoom label
-        // checkForOptimalFacialArea(facialArea);
-
-        //clickPicture();
+        textFaceDetectStatus.setText("");
+        textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+        afterClickedLayout.setVisibility(View.INVISIBLE);
 
         verifyFaceStatus(firebaseVisionFace.get(0));
     }
 
+    /**
+     * This method check the condition for different case for the face
+     *
+     * @param face
+     */
     public void verifyFaceStatus( FirebaseVisionFace face ) {
         //this verify of face is inside frame
         if ( verifyFaceInsideFrame(face) ) {
@@ -223,9 +226,28 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             if ( verifyMinimumFaceArea(face) ) {
                 //this method check if the face is intersected at the center
                 if ( verifyFaceAlignWithCenter(face) ) {
+                    //this method check if the face is tilted or not
+                    if ( verifyFaceLandmarks(face) ) {
 
+                        //if countConditionProbability is 2 then click photo
+                        countConditionProbability++;
+                        if ( countConditionProbability > 2 ) {
+
+                            AppConstant.LOCK_FRAME = false;
+                            textFaceDetectStatus.setVisibility(View.VISIBLE);
+                            textFaceDetectStatus.setText("Hold on Clicking photo in 3 seconds");
+                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                            clickPicture();
+                        }
+                    }
+                } else {
+                    countConditionProbability = 0;
                 }
+            } else {
+                countConditionProbability = 0;
             }
+        } else {
+            countConditionProbability = 0;
         }
     }
 
@@ -382,92 +404,59 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     }
 
     /**
-     * Check for the facial area and move for zoom
+     * This method check if the face is stright out of the image plane
+     * Can also check if Eyes are open or not
      *
-     * @param facialArea
+     * @param face
+     * @return
      */
-    private synchronized void checkForOptimalFacialArea( int facialArea ) {
+    private synchronized boolean verifyFaceLandmarks( FirebaseVisionFace face ) {
+        boolean islandmarkVerified = false;
+        String remark = "";
+        int OFF_SET_POSITIVE = 8;
+        int OFF_SET_NEGATIVE = -8;
 
-        if ( facialArea < AREA_OF_FRAME ) {
-            Log.i(TAG, "Less than Optimal area");
-            /**
-             * increase the zoom label: until this condition is false
-             */
-            if ( cameraZoomLabel < AppConstant.MAX_CAMERA_ZOOM_AVAILABLE ) {
-                Log.i(TAG, "GO ZOOM IN, less than optimal");
-                cameraZoomLabel++;
-
-                //reset the capture lock variable to let it capture
-                AppConstant.LOCK_FRAME = true;
-
-                //zoom
-                zoomCamera(cameraZoomLabel);
-
-                textFaceDetectStatus.setVisibility(View.VISIBLE);
-                textFaceDetectStatus.setText("Face Detected Less than Optimal");
-                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_white));
-                afterClickedLayout.setVisibility(View.INVISIBLE);
-            } else {
-                /**
-                 * If Zoom reaches Max of the Camera, then restart the zoom from 0
-                 */
-                cameraZoomLabel = 0;
-
-                //reset the capture lock variable to let it capture
-                AppConstant.LOCK_FRAME = true;
-
-                zoomCamera(cameraZoomLabel);
-
-                textFaceDetectStatus.setVisibility(View.VISIBLE);
-                textFaceDetectStatus.setText("Can't zoom Anymore ");
-                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_red));
-                afterClickedLayout.setVisibility(View.INVISIBLE);
-                Log.i(TAG, "Maximum Zoom of the Camera Reached");
-            }
-
-        } else if ( facialArea > AREA_OF_FRAME ) {
-
-            if ( cameraZoomLabel >= 1 ) {
-                Log.i(TAG, "MORE THAN OPTIMAL ZOOM OUT");
-                cameraZoomLabel--;
-
-                //reset the capture lock variable to let it capture
-                AppConstant.LOCK_FRAME = true;
-
-                zoomCamera(cameraZoomLabel);
-                textFaceDetectStatus.setVisibility(View.VISIBLE);
-                textFaceDetectStatus.setText("Face Detected More than Optimal, Zooming OUT");
-                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_white));
-                afterClickedLayout.setVisibility(View.INVISIBLE);
-            } else {
-                //zoom need to be 0
-                cameraZoomLabel = 0;
-
-                //reset the capture lock variable to let it capture
-                AppConstant.LOCK_FRAME = true;
-
-                Log.i(TAG, "MORE THAN OPTIMAL CANNOT ZOOM OUT");
-                textFaceDetectStatus.setVisibility(View.VISIBLE);
-                textFaceDetectStatus.setText("Facial Area is More than Optimal Required, please move you camera ");
-                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_red));
-                afterClickedLayout.setVisibility(View.INVISIBLE);
-            }
+        //check if face is turned right or left HeadEulerAngleY
+        if ( face.getHeadEulerAngleY() > OFF_SET_POSITIVE ) {
+            textFaceCurrentStatus.setText("Head is Turned RIGHT, Make Straight");
+            textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_red));
+            Log.i(TAG, "verifyFaceLandmarks: Heade is turned RIGHT");
+            islandmarkVerified = false;
+            return islandmarkVerified;
+        } else if ( face.getHeadEulerAngleY() < OFF_SET_NEGATIVE ) {
+            textFaceCurrentStatus.setText("Head is Turned LEFT, Make Straight");
+            textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_red));
+            Log.i(TAG, "verifyFaceLandmarks: Heade is turned LEFT");
+            islandmarkVerified = false;
+            return islandmarkVerified;
         } else {
-            //optimal camera
-            mCamera.stopFaceDetection();
-
-            //stop capturing frame as optimal reached
-            AppConstant.LOCK_FRAME = false;
-            Log.i(TAG, "Already in Optimal, Don't change");
-
-            textFaceDetectStatus.setVisibility(View.VISIBLE);
-            textFaceDetectStatus.setText("Photo clicked, please choose options?");
-            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_green));
-            afterClickedLayout.setVisibility(View.VISIBLE);
-
-            //take picture
-            clickPicture();
+            islandmarkVerified = true;
+            Log.i(TAG, "verifyFaceLandmarks: Head is STRAIGHT from Left right condition");
         }
+
+        //check if face is turned top or bottom
+        if ( face.getHeadEulerAngleZ() > OFF_SET_POSITIVE ) {
+            textFaceCurrentStatus.setText("Head is Turned UP, Make Straight");
+            textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_red));
+            Log.i(TAG, "verifyFaceLandmarks: Heade is turned UP");
+            islandmarkVerified = false;
+            return islandmarkVerified;
+        } else if ( face.getHeadEulerAngleZ() < OFF_SET_NEGATIVE ) {
+            textFaceCurrentStatus.setText("Head is Turned BOTTOM, Make Straight");
+            textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_red));
+            Log.i(TAG, "verifyFaceLandmarks: Heade is turned BOTTOM");
+            islandmarkVerified = false;
+            return islandmarkVerified;
+        } else {
+            islandmarkVerified = true;
+            Log.i(TAG, "verifyFaceLandmarks: Head is STRAIGHT from Left right condition");
+        }
+
+        if ( islandmarkVerified ) {
+            textFaceCurrentStatus.setText("Head is Straight");
+            textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_green));
+        }
+        return islandmarkVerified;
     }
 
     /**
@@ -495,8 +484,29 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             if ( mMLPreview != null ) {
                 if ( mMLPreview.isPreviewRunning() ) {
 
-                    afterClickedLayout.setVisibility(View.VISIBLE);
-                    mCamera.takePicture(null, null, mPicture);
+                    /**
+                     * This method clicks photo is 3 seconds
+                     */
+                    new CountDownTimer(3000, 1000) {
+                        public void onFinish() {
+                            // When timer is finished
+                            mCamera.takePicture(null, null, mPicture);
+
+                            //show UI
+                            textFaceDetectStatus.setText("Clicked, please choose options");
+                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_green));
+                            afterClickedLayout.setVisibility(View.VISIBLE);
+                            Log.i(TAG, "photo clicked");
+                        }
+
+
+                        public void onTick( long millisUntilFinished ) {
+                            // millisUntilFinished    The amount of time until finished.
+                            textFaceDetectStatus.setText("Hold on Clicking photo in " + (millisUntilFinished / 1000) + " seconds");
+                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                            Log.i(TAG, "photo clicked waiting seconds");
+                        }
+                    }.start();
                 }
             }
         }
