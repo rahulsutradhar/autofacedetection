@@ -42,6 +42,8 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private Context mContext;
     private Activity mActivity;
 
+    private int measuredWidth = 0, measuredHeight = 0;
+
     private volatile boolean isPreviewRunning = false;
     private int cameraId = -1;
 
@@ -60,6 +62,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private FirebaseVisionImageMetadata metadata;
     private FirebaseVisionFaceDetector detector;
 
+    //interface variables
     private FaceDetectedInFrame faceDetectedInFrame;
     private NoFaceDetectedInFrame noFaceDetectedInFrame;
 
@@ -80,6 +83,8 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         for ( Camera.Size str : mSupportedPreviewSizes )
             Log.e(TAG, str.width + "/" + str.height);
 
+        //set the display orientation
+        GeneralHelper.setCameraDisplayOrientation(mActivity, getBackFacingCameraId());
 
         // Install a SurfaceHolder.Callback so we get notified when the
         // underlying surface is created and destroyed.
@@ -92,6 +97,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         //this creates the firebase detector instance once
         getFirebaseVisionFaceDetector();
 
+        //interface intialization
         faceDetectedInFrame = (FaceDetectedInFrame) context;
         noFaceDetectedInFrame = (NoFaceDetectedInFrame) context;
     }
@@ -122,12 +128,13 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
+            parameters.setPictureSize(mPreviewSize.width, mPreviewSize.height);
+            //TODO set Rotation
             if ( Build.VERSION.SDK_INT > 17 ) {
                 mCamera.enableShutterSound(true);
             }
             mCamera.setParameters(parameters);
-            mCamera.setDisplayOrientation(GeneralHelper
-                    .getCameraDisplayOrientation(mActivity, getBackFacingCameraId()));
+            mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
             mCamera.setPreviewCallback(this);
             requestLayout();
             isPreviewRunning = true;
@@ -175,12 +182,12 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
                 Camera.Parameters parameters = mCamera.getParameters();
                 parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
+                parameters.setPictureSize(mPreviewSize.width, mPreviewSize.height);
                 if ( Build.VERSION.SDK_INT > 17 ) {
                     mCamera.enableShutterSound(true);
                 }
                 mCamera.setParameters(parameters);
-                mCamera.setDisplayOrientation(GeneralHelper
-                        .getCameraDisplayOrientation(mActivity, getBackFacingCameraId()));
+                mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
                 mCamera.setPreviewCallback(this);
                 mCamera.setPreviewDisplay(mHolder);
                 requestLayout();
@@ -206,9 +213,10 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                     mCamera.setPreviewCallback(null);
                     mCamera.stopPreview();
                     mCamera.release();
+                    mCamera = null;
                 }
-            } catch ( Exception e ) {
-
+            } catch ( RuntimeException re ) {
+                re.printStackTrace();
             }
         }
 
@@ -221,21 +229,30 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         final int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
         final int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
 
+
         if ( mSupportedPreviewSizes != null ) {
             mPreviewSize = getOptimalPreviewSize(mSupportedPreviewSizes, width, height);
         }
 
         if ( mPreviewSize != null ) {
-            float ratio;
-            if ( mPreviewSize.height >= mPreviewSize.width )
-                ratio = (float) mPreviewSize.height / (float) mPreviewSize.width;
-            else
-                ratio = (float) mPreviewSize.width / (float) mPreviewSize.height;
+            float previewRatio = (float) mPreviewSize.height / (float) mPreviewSize.width;
+            // previewRatio is height/width because camera preview size are in landscape.
+            float measuredSizeRatio = (float) width / (float) height;
 
-            // One of these methods should be used, second method squishes preview slightly
-            setMeasuredDimension(width, (int) (width * ratio));
-            //setMeasuredDimension((int) (width * ratio), height);
+            if ( previewRatio >= measuredSizeRatio ) {
+                measuredHeight = height;
+                measuredWidth = (int) ((float) height * previewRatio);
+            } else {
+                measuredWidth = width;
+                measuredHeight = (int) ((float) width / previewRatio);
+            }
+            Log.i(TAG, "Preview size: " + width + "w, " + height + "h" +
+                    "\nPreview size calculated: " + measuredWidth + "w, " + measuredHeight + "h" +
+                    "\nCAMERA Size: " + mPreviewSize.width + "w, " + mPreviewSize.height + "h");
+
+            setMeasuredDimension(measuredWidth, measuredHeight);
         }
+
     }
 
 
@@ -328,11 +345,11 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                      * Capture the Frame only when it is TRUE
                      * and lock it until its FALSE
                      */
-                    Log.i(TAG, "isFrameCapture : " + AppConstant.IS_FRAME_CAPTURED);
-                    if ( AppConstant.IS_FRAME_CAPTURED ) {
-                        Log.i(TAG, "isFrameCapture --> Has Captured : " + AppConstant.IS_FRAME_CAPTURED);
+                    Log.i(TAG, "isFrame LOCKED : " + AppConstant.LOCK_FRAME);
+                    if ( AppConstant.LOCK_FRAME ) {
+                        Log.i(TAG, "isFrame LOCKED --> Has Captured : " + AppConstant.LOCK_FRAME);
                         //capture so lock it by setting false
-                        AppConstant.IS_FRAME_CAPTURED = false;
+                        AppConstant.LOCK_FRAME = false;
 
                         letFirebaseMLDetectFace(data);
                     }
@@ -444,7 +461,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     }
 
     /**
-     * Calculate the Rotation
+     * Calculate the Rotation for Firebase Vision Image
      *
      * @return
      */
@@ -462,7 +479,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
         // devices it is 270 degrees. For devices with a sensor orientation of
         // 270, rotate the image an additional 180 ((270 + 270) % 360) degrees.
 
-        switch ( GeneralHelper.getCameraDisplayOrientation(mActivity, getBackFacingCameraId()) ) {
+        switch ( GeneralHelper.getCameraDisplayOrientation() ) {
             case 0:
                 result = FirebaseVisionImageMetadata.ROTATION_0;
                 break;

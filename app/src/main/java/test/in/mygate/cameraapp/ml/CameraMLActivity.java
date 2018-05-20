@@ -10,9 +10,9 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.face.FirebaseVisionFace;
 
 import java.io.File;
@@ -124,7 +124,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
 
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(imageData);
+                fos.write(GeneralHelper.rotate(imageData));
+                //fos.write(imageData);
                 fos.close();
 
                 //broadcast the gallery
@@ -158,7 +159,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         //start preview
         startCameraPreview();
         //reset the capture lock variable
-        AppConstant.IS_FRAME_CAPTURED = true;
+        AppConstant.LOCK_FRAME = true;
         AppConstant.MAX_FACIAL_AREA = 0;
         AppConstant.MIN_FACIAL_AREA = 0;
         AppConstant.HEIGHT_PREVIEW = 0;
@@ -176,7 +177,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     @Override
     public void noFaceDetected() {
         //set this true so that it start to capture frame again
-        AppConstant.IS_FRAME_CAPTURED = true;
+        AppConstant.LOCK_FRAME = true;
 
         //update the status in frame
         textFaceDetectStatus.setText("");
@@ -187,7 +188,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     @Override
     public synchronized void faceDetected( List<FirebaseVisionFace> firebaseVisionFace ) {
         //set this true so that it start to capture frame again
-        AppConstant.IS_FRAME_CAPTURED = false;
+        AppConstant.LOCK_FRAME = false;
 
         //calculate facial area for 1-face
         int facialArea = firebaseVisionFace.get(0).getBoundingBox().height() * firebaseVisionFace.get(0).getBoundingBox().width();
@@ -195,7 +196,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 "\nFacial Area: " + facialArea + "\nView Area: " + AREA_OF_FRAME);
 
         //check and update the zoom label
-        //checkForOptimalFacialArea(facialArea);
+       // checkForOptimalFacialArea(facialArea);
 
         clickPicture();
     }
@@ -217,7 +218,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 zoomLabel++;
 
                 //reset the capture lock variable to let it capture
-                AppConstant.IS_FRAME_CAPTURED = true;
+                AppConstant.LOCK_FRAME = true;
 
                 //zoom
                 zoomCamera(zoomLabel);
@@ -233,7 +234,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 zoomLabel = 0;
 
                 //reset the capture lock variable to let it capture
-                AppConstant.IS_FRAME_CAPTURED = true;
+                AppConstant.LOCK_FRAME = true;
 
                 zoomCamera(zoomLabel);
 
@@ -251,7 +252,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 zoomLabel--;
 
                 //reset the capture lock variable to let it capture
-                AppConstant.IS_FRAME_CAPTURED = true;
+                AppConstant.LOCK_FRAME = true;
 
                 zoomCamera(zoomLabel);
                 textFaceDetectStatus.setVisibility(View.VISIBLE);
@@ -263,7 +264,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 zoomLabel = 0;
 
                 //reset the capture lock variable to let it capture
-                AppConstant.IS_FRAME_CAPTURED = true;
+                AppConstant.LOCK_FRAME = true;
 
                 Log.i(TAG, "MORE THAN OPTIMAL CANNOT ZOOM OUT");
                 textFaceDetectStatus.setVisibility(View.VISIBLE);
@@ -276,7 +277,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             mCamera.stopFaceDetection();
 
             //stop capturing frame as optimal reached
-            AppConstant.IS_FRAME_CAPTURED = false;
+            AppConstant.LOCK_FRAME = false;
             Log.i(TAG, "Already in Optimal, Don't change");
 
             textFaceDetectStatus.setVisibility(View.VISIBLE);

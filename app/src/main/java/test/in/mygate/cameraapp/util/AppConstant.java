@@ -17,7 +17,7 @@ public class AppConstant {
 
     //bolean variable to lock the capture
     public static volatile boolean IS_FACE_DETECTED = false;
-    public static volatile boolean IS_FRAME_CAPTURED = true;
+    public static volatile boolean LOCK_FRAME = true;
 
     //preview screen size of the camera
     public volatile static int WIDTH_PREVIEW = 0;
@@ -25,5 +25,7 @@ public class AppConstant {
 
     //area of the frame
     public volatile static int AREA_OF_FRAME = 0;
+
+    //
 
 }
