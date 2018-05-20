@@ -10,7 +10,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.hardware.Camera;
-import android.os.Build;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -128,10 +127,10 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             mCamera.setPreviewDisplay(holder);
 
             AppConstant.FOCAL_LENGHT = mCamera.getParameters().getFocalLength();
-            AppConstant.MAX_ZOOM_CAMERA = (int) Math.round((mCamera.getParameters().getMaxZoom() * 2) / 3);
+            AppConstant.MAX_CAMERA_ZOOM_AVAILABLE = (int) Math.round((mCamera.getParameters().getMaxZoom() * 2) / 3);
 
             Log.i(TAG, "Focal length : " + AppConstant.FOCAL_LENGHT +
-                    "\nMax Zoom Available : " + AppConstant.MAX_ZOOM_CAMERA);
+                    "\nMax Zoom Available : " + AppConstant.MAX_CAMERA_ZOOM_AVAILABLE);
 
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
@@ -142,9 +141,6 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             requestLayout();
             isPreviewRunning = true;
             mCamera.startPreview();
-
-            //this stores the area of the camera preview and face end points
-            calculateOptimalArea();
 
         } catch ( IOException e ) {
             Log.d(TAG, "Error setting camera preview: " + e.getMessage());
@@ -305,7 +301,22 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                 Utils.getFrameDistanceRight(), Utils.getFrameDistanceBottom());
 
         Utils.setPhotoFrame(frameRect);
-        Utils.setPhotoFrameArea(frameRect.height() * frameRect.width());
+
+        //calculate frame Area
+        int frameArea = frameRect.height() * frameRect.width();
+        Utils.setPhotoFrameArea(frameArea);
+
+        //calculate minimum face area
+        int minFaceArea = (int) Math.round((frameArea * AppConstant.MIN_FACE_PERCENT) / 100);
+        Utils.setMinFaceAreaRequired(minFaceArea);
+
+        //calculate maximum face area required
+        int maxFaceArea = (int) Math.round((frameArea * AppConstant.MAX_FACE_PERCENT) / 100);
+        Utils.setMaxFaceAreaRequired(maxFaceArea);
+
+        Log.i(TAG, "PHOTO Frame Area : " + frameArea +
+                "\nMin Facial Area Required: " + minFaceArea +
+                "\nMax Facial Area Required: " + maxFaceArea);
 
         // same constants as above except innerRectFillColor is not used. Instead:
         //semi transparent color
@@ -344,25 +355,27 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     protected void drawCenterFocusPoint( Canvas canvas ) {
 
         //calcutalate the measurement
-        int centerFrameX = (measuredWidth / 2);
-        int centerFrameY = (measuredHeight / 2);
+        int centerFrameWidth = (measuredWidth / 2);
+        int centerFrameHeight = (measuredHeight / 2);
         int spaceConstant = 10;
 
         //center position distance
-        Utils.setFrameCenterX(centerFrameX);
-        Utils.setFrameCenterY(centerFrameY);
+        Utils.setFrameCenterWidth(centerFrameWidth);
+        Utils.setFrameCenterHeight(centerFrameHeight);
 
         // height and width of the preview screen
         Utils.setPreviewWidth(measuredWidth);
         Utils.setPreviewHeight(measuredHeight);
 
+        Log.i(TAG, "Center Co-Ordinate: WIDTH : " + centerFrameWidth + "\nHEIGHT: " + centerFrameHeight);
+
         //this draw a center Position in the frame
         Paint paint = new Paint();
         paint.setColor(Color.GREEN);
-        paint.setStrokeWidth(3);
+        paint.setStrokeWidth(4);
         paint.setStyle(Paint.Style.STROKE);
-        canvas.drawRect(centerFrameX - spaceConstant, centerFrameY - spaceConstant,
-                centerFrameX + spaceConstant, centerFrameY + spaceConstant, paint);
+        canvas.drawRect(centerFrameWidth - spaceConstant, centerFrameHeight - spaceConstant,
+                centerFrameWidth + spaceConstant, centerFrameHeight + spaceConstant, paint);
 
     }
 
@@ -527,7 +540,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                     .setModeType(FirebaseVisionFaceDetectorOptions.ACCURATE_MODE)
                     .setLandmarkType(FirebaseVisionFaceDetectorOptions.ALL_LANDMARKS)
                     .setClassificationType(FirebaseVisionFaceDetectorOptions.ALL_CLASSIFICATIONS)
-                    .setMinFaceSize(0.15f)
+                    .setMinFaceSize(0.25f)
                     .setTrackingEnabled(true)
                     .build();
 
@@ -621,7 +634,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
      *
      * @param firebaseVisionFaces
      */
-    private void handleFaceDetected( List<FirebaseVisionFace> firebaseVisionFaces ) {
+    private synchronized void handleFaceDetected( List<FirebaseVisionFace> firebaseVisionFaces ) {
         faceDetectedInFrame.faceDetected(firebaseVisionFaces);
     }
 
@@ -631,20 +644,6 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
      */
     private void handleNoFaceDetected() {
         noFaceDetectedInFrame.noFaceDetected();
-    }
-
-    /**
-     * This Calculates the end area points of frame and the facial
-     */
-    private void calculateOptimalArea() {
-        AppConstant.AREA_OF_FRAME = (AppConstant.WIDTH_PREVIEW * AppConstant.HEIGHT_PREVIEW);
-        AppConstant.MIN_FACIAL_AREA = (int) Math.round((AppConstant.AREA_OF_FRAME * 8) / 100);
-        AppConstant.MAX_FACIAL_AREA = (int) Math.round((AppConstant.AREA_OF_FRAME * 16) / 100);
-
-        Log.i(TAG, "AREA OF FRAME : " + AppConstant.AREA_OF_FRAME +
-                "\nMIN FACIAL AREA : " + AppConstant.MIN_FACIAL_AREA +
-                "\nMAX FACIAL AREA : " + AppConstant.MAX_FACIAL_AREA);
-
     }
 
     /**

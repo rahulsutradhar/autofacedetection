@@ -8,25 +8,41 @@ import android.graphics.Rect;
 
 public class Utils {
 
-    //rectangle of the frame
+    /**
+     * rectangle of the frame
+     */
     private volatile static Rect photoFrame;
 
-    //center distance of the previewScreen
-    private volatile static int frameCenterX;
-    private volatile static int frameCenterY;
+    /**
+     * center distance of the previewScreen
+     */
+    private volatile static int frameCenterWidth;
+    private volatile static int frameCenterHeight;
 
-    //distance of the
+    /**
+     * distance of the frame
+     */
     private volatile static int frameDistanceLeft;
     private volatile static int frameDistanceTop;
     private volatile static int frameDistanceRight;
     private volatile static int frameDistanceBottom;
 
-    //preview height and width
+    /**
+     * preview height and width
+     */
     private volatile static int previewHeight;
     private volatile static int previewWidth;
 
-    //Area of the Frame
+    /**
+     * Area of the Frame
+     */
     private volatile static int photoFrameArea;
+
+    /**
+     * Minimum and maximum face Area
+     */
+    private volatile static int minFaceAreaRequired;
+    private volatile static int maxFaceAreaRequired;
 
     /**************************
      * Getter Setter
@@ -39,20 +55,20 @@ public class Utils {
         Utils.photoFrame = photoFrame;
     }
 
-    public static int getFrameCenterX() {
-        return frameCenterX;
+    public static int getFrameCenterWidth() {
+        return frameCenterWidth;
     }
 
-    public static void setFrameCenterX( int frameCenterX ) {
-        Utils.frameCenterX = frameCenterX;
+    public static void setFrameCenterWidth( int frameCenterWidth ) {
+        Utils.frameCenterWidth = frameCenterWidth;
     }
 
-    public static int getFrameCenterY() {
-        return frameCenterY;
+    public static int getFrameCenterHeight() {
+        return frameCenterHeight;
     }
 
-    public static void setFrameCenterY( int frameCenterY ) {
-        Utils.frameCenterY = frameCenterY;
+    public static void setFrameCenterHeight( int frameCenterHeight ) {
+        Utils.frameCenterHeight = frameCenterHeight;
     }
 
     public static int getFrameDistanceLeft() {
@@ -109,5 +125,21 @@ public class Utils {
 
     public static void setPhotoFrameArea( int photoFrameArea ) {
         Utils.photoFrameArea = photoFrameArea;
+    }
+
+    public static int getMinFaceAreaRequired() {
+        return minFaceAreaRequired;
+    }
+
+    public static void setMinFaceAreaRequired( int minFaceAreaRequired ) {
+        Utils.minFaceAreaRequired = minFaceAreaRequired;
+    }
+
+    public static int getMaxFaceAreaRequired() {
+        return maxFaceAreaRequired;
+    }
+
+    public static void setMaxFaceAreaRequired( int maxFaceAreaRequired ) {
+        Utils.maxFaceAreaRequired = maxFaceAreaRequired;
     }
 }

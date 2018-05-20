@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AppConstant {
 
-    public static int MAX_ZOOM_CAMERA = 0;
+    public static int MAX_CAMERA_ZOOM_AVAILABLE = 0;
     public static float FOCAL_LENGHT = 1;
 
     //end points for face capture
@@ -29,5 +29,9 @@ public class AppConstant {
     //Define the constanct percent for the frame
     public static final int FRAME_WIDTH_PERCENT = 80;
     public static final int FRAME_HEIGHT_PERCENT = 60;
+
+    //define optimal percentage of face required
+    public static final int MIN_FACE_PERCENT = 28;
+    public static final int MAX_FACE_PERCENT = 40;
 
 }

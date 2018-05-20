@@ -1,8 +1,5 @@
 package test.in.mygate.cameraapp;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.hardware.Camera;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -23,7 +20,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import test.in.mygate.cameraapp.events.FaceDetect;
 import test.in.mygate.cameraapp.util.AppConstant;
@@ -166,7 +162,7 @@ public class CameraActivity extends AppCompatActivity {
             /**
              * increase the zoom label: until this condition is false
              */
-            if ( zoomLabel < AppConstant.MAX_ZOOM_CAMERA ) {
+            if ( zoomLabel < AppConstant.MAX_CAMERA_ZOOM_AVAILABLE ) {
                 Log.i(TAG, "GO ZOOM IN");
                 zoomLabel++;
                 zoomInCamera(zoomLabel);

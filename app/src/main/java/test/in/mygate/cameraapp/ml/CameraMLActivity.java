@@ -1,5 +1,6 @@
 package test.in.mygate.cameraapp.ml;
 
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -26,6 +27,7 @@ import test.in.mygate.cameraapp.util.ml.CameraMLPreview;
 import test.in.mygate.cameraapp.util.GeneralHelper;
 import test.in.mygate.cameraapp.util.ml.FaceDetectedInFrame;
 import test.in.mygate.cameraapp.util.ml.NoFaceDetectedInFrame;
+import test.in.mygate.cameraapp.util.ml.Utils;
 
 import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
 import static test.in.mygate.cameraapp.util.AppConstant.AREA_OF_FRAME;
@@ -41,6 +43,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     private Button discardButton, saveButton;
     private TextView textFaceDetectStatus;
     private TextView textFaceAreaStatus, textFaceDirectionStatus;
+    private TextView textFaceTiltStatus, textFaceFocusStatus;
 
     private CameraMLActivity cameraMLActivity;
 
@@ -48,7 +51,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     private Camera mCamera;
     private volatile byte[] imageData = null;
 
-    private volatile int zoomLabel = 0;
+
+    private volatile int cameraZoomLabel = 0;
 
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
@@ -72,6 +76,11 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         faceStatusLayout = (LinearLayout) findViewById(R.id.face_status_layout);
         textFaceAreaStatus = (TextView) findViewById(R.id.face_area_status);
         textFaceDirectionStatus = (TextView) findViewById(R.id.face_direction_status);
+        textFaceTiltStatus = (TextView) findViewById(R.id.face_tilt_status);
+        textFaceFocusStatus = (TextView) findViewById(R.id.face_center_focused);
+
+        textFaceAreaStatus.setText("Face need to cover " + AppConstant.MIN_FACE_PERCENT +
+                "% of Frame Area and Aligh with center");
 
         afterClickedLayout.setVisibility(View.INVISIBLE);
 
@@ -172,7 +181,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         AppConstant.WIDTH_PREVIEW = 0;
 
         //set the zoom label to 0
-        zoomLabel = 0;
+        cameraZoomLabel = 0;
 
         //update UI
         afterClickedLayout.setVisibility(View.INVISIBLE);
@@ -194,17 +203,182 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     @Override
     public synchronized void faceDetected( List<FirebaseVisionFace> firebaseVisionFace ) {
         //set this true so that it start to capture frame again
-        AppConstant.LOCK_FRAME = false;
+        AppConstant.LOCK_FRAME = true;
 
         //calculate facial area for 1-face
-        int facialArea = firebaseVisionFace.get(0).getBoundingBox().height() * firebaseVisionFace.get(0).getBoundingBox().width();
-        Log.i(TAG, "Face Co-Ordinate: " + firebaseVisionFace.get(0).getBoundingBox() +
-                "\nFacial Area: " + facialArea + "\nView Area: " + AREA_OF_FRAME);
+        Log.i(TAG, "Face Co-Ordinate: " + firebaseVisionFace.get(0).getBoundingBox());
 
         //check and update the zoom label
         // checkForOptimalFacialArea(facialArea);
 
-        clickPicture();
+        //clickPicture();
+
+        verifyFaceStatus(firebaseVisionFace.get(0));
+    }
+
+    public void verifyFaceStatus( FirebaseVisionFace face ) {
+        //this verify of face is inside frame
+        if ( verifyFaceInsideFrame(face) ) {
+            //this check if face has reached minimum face Area
+            if ( verifyMinimumFaceArea(face) ) {
+                //this method check if the face is intersected at the center
+                if ( verifyFaceAlignWithCenter(face) ) {
+
+                }
+            }
+        }
+    }
+
+    /**
+     * This method checks if face is inside Frame
+     *
+     * @param face
+     */
+    private synchronized boolean verifyFaceInsideFrame( FirebaseVisionFace face ) {
+        boolean isFaceInside = false;
+        Rect faceRect = face.getBoundingBox();
+
+        //if face is outside frame from left and right or top and bottom
+        if ( (faceRect.left < Utils.getFrameDistanceLeft() &&
+                faceRect.right > Utils.getFrameDistanceRight()) ||
+                (faceRect.top < Utils.getFrameDistanceTop() &&
+                        faceRect.bottom > Utils.getFrameDistanceBottom()) ) {
+
+            //move camera back or object
+            textFaceDirectionStatus.setText("Face outside frame, Put Inside");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_red));
+            isFaceInside = false;
+            Log.i(TAG, "onFaceDetected:  " + "Outside Frame, Move Camera Back");
+        }
+        //if face is outside frame from left
+        else if ( faceRect.left < Utils.getFrameDistanceLeft() ) {
+            textFaceDirectionStatus.setText("Move Camera LEFT");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+            isFaceInside = false;
+            Log.i(TAG, "onFaceDetected:  " + "Move Camera LEFT");
+        }
+        //if face is outside frame from right
+        else if ( faceRect.right > Utils.getFrameDistanceRight() ) {
+            textFaceDirectionStatus.setText("Move Camera RIGHT");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+            isFaceInside = false;
+            Log.i(TAG, "onFaceDetected:  " + "Move Camera RIGHT");
+        }
+        //if face is outside frame from top
+        else if ( faceRect.top < Utils.getFrameDistanceTop() ) {
+            textFaceDirectionStatus.setText("Move Camera TOP");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+            isFaceInside = false;
+            Log.i(TAG, "onFaceDetected:  " + "Move Camera TOP");
+        }
+        //if face is outside frame from bottom
+        else if ( faceRect.bottom > Utils.getFrameDistanceBottom() ) {
+            textFaceDirectionStatus.setText("Move Camera BOTTOM");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+            isFaceInside = false;
+            Log.i(TAG, "onFaceDetected:  " + "Move Camera BOTTOM");
+        } else {
+            textFaceDirectionStatus.setText("Face is inside frame");
+            textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_green));
+            isFaceInside = true;
+            Log.i(TAG, "onFaceDetected:  " + "Face is inside frame");
+        }
+        return isFaceInside;
+    }
+
+    /**
+     * This method verify the minimum facial Area Required
+     *
+     * @param face
+     * @return
+     */
+    private synchronized boolean verifyMinimumFaceArea( FirebaseVisionFace face ) {
+        boolean isMinimumFaceArea = false;
+        Rect faceRect = face.getBoundingBox();
+        int faceArea = (faceRect.height() * faceRect.width());
+
+        //check minimum facial area required
+        if ( faceArea < Utils.getMinFaceAreaRequired() ) {
+            //need to zoom the camera
+            if ( cameraZoomLabel < AppConstant.MAX_CAMERA_ZOOM_AVAILABLE ) {
+                Log.i(TAG, "verifyMinimumFaceArea: LESS: ZOOM  -> " + faceArea +
+                        "\nRequired Area  -> " + Utils.getMinFaceAreaRequired());
+                cameraZoomLabel++;
+
+                textFaceAreaStatus.setText("Facial Area is less than " + AppConstant.MIN_FACE_PERCENT + "%");
+                textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_red));
+                zoomCamera(cameraZoomLabel);
+            } else {
+                cameraZoomLabel = 0;
+                zoomCamera(cameraZoomLabel);
+
+                textFaceAreaStatus.setText("Camera Max Zoom reached, please adjust position");
+                textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                Log.i(TAG, "verifyMinimumFaceArea: LESS: Camera Max Zoom Reached, set to 0");
+            }
+            isMinimumFaceArea = false;
+        }
+        // check maximum facial area required, it should not increase more than this
+        else if ( faceArea > Utils.getMaxFaceAreaRequired() ) {
+            //if zoom is available then zoom out
+            if ( cameraZoomLabel > 1 ) {
+                cameraZoomLabel--;
+                zoomCamera(cameraZoomLabel);
+
+                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACIAL_AREA + "%");
+                textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_red));
+                Log.i(TAG, "verifyMinimumFaceArea: MORE: Camera is Zoomint Out");
+            }
+            //zoom is not available that means, position need to be adjusted
+            else {
+                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACIAL_AREA +
+                        "% Please Ajust Camera");
+                textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                Log.i(TAG, "verifyMinimumFaceArea: MORE: Camera Zoom Not Available");
+            }
+            isMinimumFaceArea = false;
+        } else {
+            isMinimumFaceArea = true;
+
+            textFaceAreaStatus.setText("Optimal Area Reached");
+            textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_green));
+            Log.i(TAG, "verifyMinimumFaceArea: OPTIMAL: " + faceArea +
+                    "\nRequired Area : " + Utils.getMinFaceAreaRequired());
+        }
+
+        return isMinimumFaceArea;
+    }
+
+    /**
+     * This method chek=cks if face intersects center focus points
+     *
+     * @param face
+     * @return
+     */
+    private synchronized boolean verifyFaceAlignWithCenter( FirebaseVisionFace face ) {
+        boolean isFaceIntersectsCenter = false;
+        Rect faceRect = face.getBoundingBox();
+
+        //face is intersected at center
+        if ( faceRect.left < Utils.getFrameCenterWidth() &&
+                faceRect.right > Utils.getFrameCenterWidth() &&
+                faceRect.top < Utils.getFrameCenterHeight() &&
+                faceRect.bottom > Utils.getFrameCenterHeight() ) {
+
+            isFaceIntersectsCenter = true;
+            textFaceFocusStatus.setText("Face is intersected at Center");
+            textFaceFocusStatus.setTextColor(getResources().getColor(R.color.color_green));
+            Log.i(TAG, "verifyFaceAlignWithCenter: Face is Intersected at center");
+        }
+        //face is not intersected at center
+        else {
+            isFaceIntersectsCenter = false;
+            textFaceFocusStatus.setText("Face Need to be intersected at Center");
+            textFaceFocusStatus.setTextColor(getResources().getColor(R.color.color_red));
+            Log.i(TAG, "verifyFaceAlignWithCenter: Face NOT Intersected at center");
+        }
+
+        return isFaceIntersectsCenter;
     }
 
     /**
@@ -219,15 +393,15 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             /**
              * increase the zoom label: until this condition is false
              */
-            if ( zoomLabel < AppConstant.MAX_ZOOM_CAMERA ) {
+            if ( cameraZoomLabel < AppConstant.MAX_CAMERA_ZOOM_AVAILABLE ) {
                 Log.i(TAG, "GO ZOOM IN, less than optimal");
-                zoomLabel++;
+                cameraZoomLabel++;
 
                 //reset the capture lock variable to let it capture
                 AppConstant.LOCK_FRAME = true;
 
                 //zoom
-                zoomCamera(zoomLabel);
+                zoomCamera(cameraZoomLabel);
 
                 textFaceDetectStatus.setVisibility(View.VISIBLE);
                 textFaceDetectStatus.setText("Face Detected Less than Optimal");
@@ -237,12 +411,12 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 /**
                  * If Zoom reaches Max of the Camera, then restart the zoom from 0
                  */
-                zoomLabel = 0;
+                cameraZoomLabel = 0;
 
                 //reset the capture lock variable to let it capture
                 AppConstant.LOCK_FRAME = true;
 
-                zoomCamera(zoomLabel);
+                zoomCamera(cameraZoomLabel);
 
                 textFaceDetectStatus.setVisibility(View.VISIBLE);
                 textFaceDetectStatus.setText("Can't zoom Anymore ");
@@ -253,21 +427,21 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
 
         } else if ( facialArea > AREA_OF_FRAME ) {
 
-            if ( zoomLabel >= 1 ) {
+            if ( cameraZoomLabel >= 1 ) {
                 Log.i(TAG, "MORE THAN OPTIMAL ZOOM OUT");
-                zoomLabel--;
+                cameraZoomLabel--;
 
                 //reset the capture lock variable to let it capture
                 AppConstant.LOCK_FRAME = true;
 
-                zoomCamera(zoomLabel);
+                zoomCamera(cameraZoomLabel);
                 textFaceDetectStatus.setVisibility(View.VISIBLE);
                 textFaceDetectStatus.setText("Face Detected More than Optimal, Zooming OUT");
                 textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_white));
                 afterClickedLayout.setVisibility(View.INVISIBLE);
             } else {
                 //zoom need to be 0
-                zoomLabel = 0;
+                cameraZoomLabel = 0;
 
                 //reset the capture lock variable to let it capture
                 AppConstant.LOCK_FRAME = true;
@@ -303,7 +477,6 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      */
     private void zoomCamera( int newZoomValue ) {
         if ( mCamera.getParameters().isZoomSupported() ) {
-
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setZoom(newZoomValue);
             mCamera.setParameters(parameters);

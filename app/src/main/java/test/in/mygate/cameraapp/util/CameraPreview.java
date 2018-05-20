@@ -50,10 +50,10 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             mCamera.setPreviewDisplay(holder);
 
             AppConstant.FOCAL_LENGHT = mCamera.getParameters().getFocalLength();
-            AppConstant.MAX_ZOOM_CAMERA = (int) Math.round((mCamera.getParameters().getMaxZoom() * 2) / 3);
+            AppConstant.MAX_CAMERA_ZOOM_AVAILABLE = (int) Math.round((mCamera.getParameters().getMaxZoom() * 2) / 3);
 
             Log.i(TAG, "Focal length : " + AppConstant.FOCAL_LENGHT +
-                    "\nMax Zoom Available : " + AppConstant.MAX_ZOOM_CAMERA);
+                    "\nMax Zoom Available : " + AppConstant.MAX_CAMERA_ZOOM_AVAILABLE);
 
             mCamera.startPreview();
 
