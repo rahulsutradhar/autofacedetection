@@ -2,7 +2,13 @@ package test.in.mygate.cameraapp.util.ml;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.os.Build;
 import android.support.annotation.NonNull;
@@ -85,6 +91,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
         //set the display orientation
         GeneralHelper.setCameraDisplayOrientation(mActivity, getBackFacingCameraId());
+        setWillNotDraw(false);
 
         // Install a SurfaceHolder.Callback so we get notified when the
         // underlying surface is created and destroyed.
@@ -129,10 +136,6 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
             parameters.setPictureSize(mPreviewSize.width, mPreviewSize.height);
-            //TODO set Rotation
-            if ( Build.VERSION.SDK_INT > 17 ) {
-                mCamera.enableShutterSound(true);
-            }
             mCamera.setParameters(parameters);
             mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
             mCamera.setPreviewCallback(this);
@@ -183,9 +186,6 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                 Camera.Parameters parameters = mCamera.getParameters();
                 parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
                 parameters.setPictureSize(mPreviewSize.width, mPreviewSize.height);
-                if ( Build.VERSION.SDK_INT > 17 ) {
-                    mCamera.enableShutterSound(true);
-                }
                 mCamera.setParameters(parameters);
                 mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
                 mCamera.setPreviewCallback(this);
@@ -251,7 +251,118 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                     "\nCAMERA Size: " + mPreviewSize.width + "w, " + mPreviewSize.height + "h");
 
             setMeasuredDimension(measuredWidth, measuredHeight);
+            invalidate();
+
+            //set the values of the preview screen
+            Utils.setPreviewHeight(measuredHeight);
+            Utils.setPreviewWidth(measuredWidth);
         }
+    }
+
+
+    /**
+     * Draw an Overlay Rectangle
+     *
+     * @param canvas
+     */
+    @Override
+    protected void onDraw( Canvas canvas ) {
+        super.onDraw(canvas);
+        Log.i(TAG, "onDRAW CALLED()");
+
+        //draw Photo frame
+        drawPhotoFrame(canvas);
+
+        //Draw a center focus point
+        drawCenterFocusPoint(canvas);
+
+
+    }
+
+    /**
+     * This draws a photo frame with all the calculative values
+     * having center focused
+     *
+     * @param canvas
+     */
+    protected void drawPhotoFrame( Canvas canvas ) {
+        //Frame Calcutlations Width
+        int frameWidth = ((measuredWidth * AppConstant.FRAME_WIDTH_PERCENT) / 100);
+        int extraSpaceEachSizeWidth = ((measuredWidth * (100 - AppConstant.FRAME_WIDTH_PERCENT)) / 100) / 2;
+
+        //Frame Calcutlations height
+        int frameHeight = ((measuredHeight * AppConstant.FRAME_HEIGHT_PERCENT) / 100);
+        int extraSpaceEachSizeHeight = ((measuredHeight * (100 - AppConstant.FRAME_HEIGHT_PERCENT)) / 100) / 2;
+
+        //set the end position for the frame
+        Utils.setFrameDistanceLeft(extraSpaceEachSizeWidth);
+        Utils.setFrameDistanceRight(extraSpaceEachSizeWidth + frameWidth);
+        Utils.setFrameDistanceTop(extraSpaceEachSizeHeight);
+        Utils.setFrameDistanceBottom(extraSpaceEachSizeHeight + frameHeight);
+
+        //set the Rect object for the frame
+        Rect frameRect = new Rect(Utils.getFrameDistanceLeft(), Utils.getFrameDistanceTop(),
+                Utils.getFrameDistanceRight(), Utils.getFrameDistanceBottom());
+
+        Utils.setPhotoFrame(frameRect);
+        Utils.setPhotoFrameArea(frameRect.height() * frameRect.width());
+
+        // same constants as above except innerRectFillColor is not used. Instead:
+        //semi transparent color
+        int outerFillColor = 0x77000000;
+
+        // first create an off-screen bitmap and its canvas
+        Bitmap bitmap = Bitmap.createBitmap(measuredWidth, measuredHeight, Bitmap.Config.ARGB_8888);
+        Canvas auxCanvas = new Canvas(bitmap);
+
+        // then fill the bitmap with the desired outside color
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(outerFillColor);
+        paint.setStyle(Paint.Style.FILL);
+        auxCanvas.drawPaint(paint);
+
+        // then punch a transparent hole in the shape of the rect
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+        auxCanvas.drawRect(frameRect, paint);
+
+        // then draw the white rect border (being sure to get rid of the xfer mode!)
+        paint.setXfermode(null);
+        paint.setColor(Color.WHITE);
+        paint.setStrokeWidth(3);
+        paint.setStyle(Paint.Style.STROKE);
+        auxCanvas.drawRect(frameRect, paint);
+
+        // finally, draw the whole thing to the original canvas
+        canvas.drawBitmap(bitmap, 0, 0, paint);
+    }
+
+    /**
+     * This draw a center focus location
+     *
+     * @param canvas
+     */
+    protected void drawCenterFocusPoint( Canvas canvas ) {
+
+        //calcutalate the measurement
+        int centerFrameX = (measuredWidth / 2);
+        int centerFrameY = (measuredHeight / 2);
+        int spaceConstant = 10;
+
+        //center position distance
+        Utils.setFrameCenterX(centerFrameX);
+        Utils.setFrameCenterY(centerFrameY);
+
+        // height and width of the preview screen
+        Utils.setPreviewWidth(measuredWidth);
+        Utils.setPreviewHeight(measuredHeight);
+
+        //this draw a center Position in the frame
+        Paint paint = new Paint();
+        paint.setColor(Color.GREEN);
+        paint.setStrokeWidth(3);
+        paint.setStyle(Paint.Style.STROKE);
+        canvas.drawRect(centerFrameX - spaceConstant, centerFrameY - spaceConstant,
+                centerFrameX + spaceConstant, centerFrameY + spaceConstant, paint);
 
     }
 
@@ -536,11 +647,11 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
     }
 
-    @Override
-    protected void onDraw( Canvas canvas ) {
-        super.onDraw(canvas);
-    }
-
+    /**
+     * Getter Setter
+     *
+     * @return
+     */
     public boolean isPreviewRunning() {
         return isPreviewRunning;
     }

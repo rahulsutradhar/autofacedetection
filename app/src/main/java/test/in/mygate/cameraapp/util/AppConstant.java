@@ -26,6 +26,8 @@ public class AppConstant {
     //area of the frame
     public volatile static int AREA_OF_FRAME = 0;
 
-    //
+    //Define the constanct percent for the frame
+    public static final int FRAME_WIDTH_PERCENT = 80;
+    public static final int FRAME_HEIGHT_PERCENT = 60;
 
 }

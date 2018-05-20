@@ -10,7 +10,6 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.google.firebase.ml.vision.face.FirebaseVisionFace;
@@ -38,9 +37,10 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     private static final String TAG = CameraMLActivity.class.getName().toString();
 
     private FrameLayout cameraPreviewLayout;
-    private LinearLayout afterClickedLayout;
+    private LinearLayout afterClickedLayout, faceStatusLayout;
     private Button discardButton, saveButton;
     private TextView textFaceDetectStatus;
+    private TextView textFaceAreaStatus, textFaceDirectionStatus;
 
     private CameraMLActivity cameraMLActivity;
 
@@ -69,6 +69,9 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         saveButton = (Button) findViewById(R.id.save_button);
         afterClickedLayout = (LinearLayout) findViewById(R.id.after_click_layout);
         textFaceDetectStatus = (TextView) findViewById(R.id.face_detected_status);
+        faceStatusLayout = (LinearLayout) findViewById(R.id.face_status_layout);
+        textFaceAreaStatus = (TextView) findViewById(R.id.face_area_status);
+        textFaceDirectionStatus = (TextView) findViewById(R.id.face_direction_status);
 
         afterClickedLayout.setVisibility(View.INVISIBLE);
 
@@ -90,6 +93,9 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         });
     }
 
+    /**
+     * Starts the camera and Preview Screen
+     */
     private void startCameraPreview() {
         // Create an instance of Camera
         mCamera = GeneralHelper.getCameraInstance();
@@ -196,7 +202,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                 "\nFacial Area: " + facialArea + "\nView Area: " + AREA_OF_FRAME);
 
         //check and update the zoom label
-       // checkForOptimalFacialArea(facialArea);
+        // checkForOptimalFacialArea(facialArea);
 
         clickPicture();
     }
