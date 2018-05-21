@@ -214,6 +214,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             try {
                 if ( mCamera != null ) {
                     isPreviewRunning = false;
+                    isRemoveFrame = false;
                     Log.i(TAG, "onSurfaceDestroyed");
                     //TODO empty. Take care of releasing the Camera preview in your activity.
                     // Surface will be destroyed when we return, so stop the preview.

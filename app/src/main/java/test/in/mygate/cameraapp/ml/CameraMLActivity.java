@@ -143,9 +143,6 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             } catch ( Exception e ) {
                 e.printStackTrace();
             }
-
-            /*AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            mgr.playSoundEffect(AudioManager.FLAG_PLAY_SOUND);*/
         }
     };
 
@@ -258,7 +255,7 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         //calculate facial area for 1-face
         Log.i(TAG, "Face Co-Ordinate: " + firebaseVisionFace.get(0).getBoundingBox());
 
-        textFaceDetectStatus.setText("");
+        textFaceDetectStatus.setText("Face detecting.");
         textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
         afterClickedLayout.setVisibility(View.INVISIBLE);
 
@@ -552,39 +549,45 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      * Capture photo
      */
     private void clickPicture() {
+        if ( mCamera != null ) {
+            if ( mMLPreview != null ) {
+                if ( mMLPreview.isPreviewRunning() ) {
 
-        /**
-         * This method clicks photo is 3 seconds
-         */
-        new CountDownTimer(3000, 1000) {
-            public void onFinish() {
+                    /**
+                     * This method clicks photo is 3 seconds
+                     */
+                    new CountDownTimer(3000, 1000) {
+                        public void onFinish() {
 
-                if ( mCamera != null ) {
-                    if ( mMLPreview != null ) {
-                        if ( mMLPreview.isPreviewRunning() ) {
+                            try {
 
-                            clearView();
-                            // When timer is finished
-                            mCamera.takePicture(mShutterCallback, null, mPicture);
+                                if ( mCamera != null ) {
+                                    // When timer is finished
+                                    mCamera.takePicture(mShutterCallback, null, mPicture);
 
-                            //show UI
-                            textFaceDetectStatus.setText("Clicked, please choose options");
-                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_green));
-                            afterClickedLayout.setVisibility(View.VISIBLE);
-                            Log.i(TAG, "photo clicked");
+                                    //show UI
+                                    clearView();
+                                    textFaceDetectStatus.setText("Clicked, please choose options");
+                                    textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_green));
+                                    afterClickedLayout.setVisibility(View.VISIBLE);
+                                    Log.i(TAG, "photo clicked");
+                                }
+                            } catch ( RuntimeException re ) {
+                                re.printStackTrace();
+                                Log.e(TAG, "Camera.takePicture : " + re.getMessage());
+                            }
                         }
-                    }
+
+                        public void onTick( long millisUntilFinished ) {
+                            // millisUntilFinished    The amount of time until finished.
+                            textFaceDetectStatus.setText("Hold on Clicking photo in " + (millisUntilFinished / 1000) + " seconds");
+                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                            Log.i(TAG, "photo clicked waiting seconds");
+                        }
+                    }.start();
                 }
-
             }
-
-            public void onTick( long millisUntilFinished ) {
-                // millisUntilFinished    The amount of time until finished.
-                textFaceDetectStatus.setText("Hold on Clicking photo in " + (millisUntilFinished / 1000) + " seconds");
-                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
-                Log.i(TAG, "photo clicked waiting seconds");
-            }
-        }.start();
+        }
 
     }
 
@@ -594,6 +597,5 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
     private void clearView() {
         mMLPreview.removeFrame();
         faceStatusLayout.setVisibility(View.INVISIBLE);
-        textFaceDetectStatus.setVisibility(View.INVISIBLE);
     }
 }
