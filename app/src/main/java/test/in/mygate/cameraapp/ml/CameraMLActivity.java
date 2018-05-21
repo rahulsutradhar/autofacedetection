@@ -1,9 +1,13 @@
 package test.in.mygate.cameraapp.ml;
 
+import android.content.Context;
 import android.graphics.Rect;
 import android.hardware.Camera;
+import android.media.AudioManager;
+import android.media.MediaActionSound;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -31,7 +35,6 @@ import test.in.mygate.cameraapp.util.ml.NoFaceDetectedInFrame;
 import test.in.mygate.cameraapp.util.ml.Utils;
 
 import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
-import static test.in.mygate.cameraapp.util.AppConstant.AREA_OF_FRAME;
 import static test.in.mygate.cameraapp.util.GeneralHelper.getOutputMediaFile;
 
 public class CameraMLActivity extends AppCompatActivity implements FaceDetectedInFrame,
@@ -82,8 +85,6 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         textFaceCurrentStatus = (TextView) findViewById(R.id.face_current_status);
         textFaceFocusStatus = (TextView) findViewById(R.id.face_center_focused);
 
-        textFaceAreaStatus.setText("Face need to cover " + AppConstant.MIN_FACE_PERCENT +
-                "% of Frame Area and Aligh with center");
 
         afterClickedLayout.setVisibility(View.INVISIBLE);
 
@@ -132,6 +133,22 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         }
     };
 
+    private final Camera.ShutterCallback mShutterCallback = new Camera.ShutterCallback() {
+        @Override
+        public void onShutter() {
+            try {
+                //keep empty
+                MediaActionSound sound = new MediaActionSound();
+                sound.play(MediaActionSound.SHUTTER_CLICK);
+            } catch ( Exception e ) {
+                e.printStackTrace();
+            }
+
+            /*AudioManager mgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            mgr.playSoundEffect(AudioManager.FLAG_PLAY_SOUND);*/
+        }
+    };
+
     private void savePicture() {
         if ( imageData != null ) {
             File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
@@ -173,19 +190,53 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         initialSettings();
     }
 
+    /**
+     * Initial setting for the UI
+     */
     private void initialSettings() {
         //start preview
         startCameraPreview();
-        //reset the capture lock variable
-        AppConstant.LOCK_FRAME = true;
 
         //set the zoom label to 0
-        cameraZoomLabel = 0;
+        if ( cameraZoomLabel > 0 ) {
+            cameraZoomLabel = 0;
+            zoomCamera(cameraZoomLabel);
+        }
         countConditionProbability = 0;
 
         //update UI
         textFaceDetectStatus.setText("");
         afterClickedLayout.setVisibility(View.INVISIBLE);
+
+        //update the other message text
+        textFaceAreaStatus.setText("Face need to cover " + AppConstant.MIN_FACE_PERCENT +
+                "% of Frame Area and Aligh with center");
+        textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_white));
+
+        textFaceDirectionStatus.setText("Please put face inside the frame");
+        textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_white));
+
+        textFaceFocusStatus.setText("Face Need to be focused at Center Point");
+        textFaceFocusStatus.setTextColor(getResources().getColor(R.color.color_white));
+
+        textFaceCurrentStatus.setText("Face need to be Straight");
+        textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_white));
+
+        textFaceDirectionStatus.setText("Face need to be Straight");
+        textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_white));
+
+        faceStatusLayout.setVisibility(View.VISIBLE);
+        textFaceDetectStatus.setVisibility(View.VISIBLE);
+
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                //reset the capture lock variable
+                AppConstant.LOCK_FRAME = true;
+            }
+        }, 3000);
+
     }
 
     @Override
@@ -237,6 +288,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                             textFaceDetectStatus.setVisibility(View.VISIBLE);
                             textFaceDetectStatus.setText("Hold on Clicking photo in 3 seconds");
                             textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+
+                            //take picture in next 3 seconds
                             clickPicture();
                         }
                     }
@@ -271,6 +324,18 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
             textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_red));
             isFaceInside = false;
             Log.i(TAG, "onFaceDetected:  " + "Outside Frame, Move Camera Back");
+
+            /**
+             * Also check if camera is zoomed, then zoom out
+             */
+            if ( cameraZoomLabel > 0 ) {
+                //zoom out
+                cameraZoomLabel--;
+                zoomCamera(cameraZoomLabel);
+                Log.i(TAG, "onFaceDetected:  " + "Outside Frame, Camera Zoom is available then, zoom out");
+            }
+
+
         }
         //if face is outside frame from left
         else if ( faceRect.left < Utils.getFrameDistanceLeft() ) {
@@ -343,18 +408,18 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         // check maximum facial area required, it should not increase more than this
         else if ( faceArea > Utils.getMaxFaceAreaRequired() ) {
             //if zoom is available then zoom out
-            if ( cameraZoomLabel > 1 ) {
+            if ( cameraZoomLabel > 0 ) {
                 cameraZoomLabel--;
                 zoomCamera(cameraZoomLabel);
 
-                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACIAL_AREA + "%");
+                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACE_PERCENT + "%");
                 textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_red));
-                Log.i(TAG, "verifyMinimumFaceArea: MORE: Camera is Zoomint Out");
+                Log.i(TAG, "verifyMinimumFaceArea: MORE: Camera is Zooming Out");
             }
             //zoom is not available that means, position need to be adjusted
             else {
-                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACIAL_AREA +
-                        "% Please Ajust Camera");
+                textFaceAreaStatus.setText("Facial Area is More than " + AppConstant.MAX_FACE_PERCENT +
+                        "% Please Adjust Camera");
                 textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_yellow));
                 Log.i(TAG, "verifyMinimumFaceArea: MORE: Camera Zoom Not Available");
             }
@@ -412,9 +477,8 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      */
     private synchronized boolean verifyFaceLandmarks( FirebaseVisionFace face ) {
         boolean islandmarkVerified = false;
-        String remark = "";
-        int OFF_SET_POSITIVE = 8;
-        int OFF_SET_NEGATIVE = -8;
+        int OFF_SET_POSITIVE = 12;
+        int OFF_SET_NEGATIVE = -12;
 
         //check if face is turned right or left HeadEulerAngleY
         if ( face.getHeadEulerAngleY() > OFF_SET_POSITIVE ) {
@@ -465,14 +529,22 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      * @param newZoomValue
      */
     private void zoomCamera( int newZoomValue ) {
-        if ( mCamera.getParameters().isZoomSupported() ) {
-            Camera.Parameters parameters = mCamera.getParameters();
-            parameters.setZoom(newZoomValue);
-            mCamera.setParameters(parameters);
+        //this check if camera is running or not NULL
+        if ( mCamera != null ) {
+            if ( mMLPreview != null ) {
+                if ( mMLPreview.isPreviewRunning() ) {
 
-            Log.i(TAG, " Camera ZOOMED : " + newZoomValue);
-        } else {
-            Log.e(TAG, "Camera ZOOMED NOT Supported : " + newZoomValue);
+                    if ( mCamera.getParameters().isZoomSupported() ) {
+                        Camera.Parameters parameters = mCamera.getParameters();
+                        parameters.setZoom(newZoomValue);
+                        mCamera.setParameters(parameters);
+
+                        Log.i(TAG, " Camera ZOOMED : " + newZoomValue);
+                    } else {
+                        Log.e(TAG, "Camera ZOOMED NOT Supported : " + newZoomValue);
+                    }
+                }
+            }
         }
     }
 
@@ -480,17 +552,20 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      * Capture photo
      */
     private void clickPicture() {
-        if ( mCamera != null ) {
-            if ( mMLPreview != null ) {
-                if ( mMLPreview.isPreviewRunning() ) {
 
-                    /**
-                     * This method clicks photo is 3 seconds
-                     */
-                    new CountDownTimer(3000, 1000) {
-                        public void onFinish() {
+        /**
+         * This method clicks photo is 3 seconds
+         */
+        new CountDownTimer(3000, 1000) {
+            public void onFinish() {
+
+                if ( mCamera != null ) {
+                    if ( mMLPreview != null ) {
+                        if ( mMLPreview.isPreviewRunning() ) {
+
+                            clearView();
                             // When timer is finished
-                            mCamera.takePicture(null, null, mPicture);
+                            mCamera.takePicture(mShutterCallback, null, mPicture);
 
                             //show UI
                             textFaceDetectStatus.setText("Clicked, please choose options");
@@ -498,17 +573,27 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
                             afterClickedLayout.setVisibility(View.VISIBLE);
                             Log.i(TAG, "photo clicked");
                         }
-
-
-                        public void onTick( long millisUntilFinished ) {
-                            // millisUntilFinished    The amount of time until finished.
-                            textFaceDetectStatus.setText("Hold on Clicking photo in " + (millisUntilFinished / 1000) + " seconds");
-                            textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
-                            Log.i(TAG, "photo clicked waiting seconds");
-                        }
-                    }.start();
+                    }
                 }
+
             }
-        }
+
+            public void onTick( long millisUntilFinished ) {
+                // millisUntilFinished    The amount of time until finished.
+                textFaceDetectStatus.setText("Hold on Clicking photo in " + (millisUntilFinished / 1000) + " seconds");
+                textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
+                Log.i(TAG, "photo clicked waiting seconds");
+            }
+        }.start();
+
+    }
+
+    /**
+     * This removes the view from the camera
+     */
+    private void clearView() {
+        mMLPreview.removeFrame();
+        faceStatusLayout.setVisibility(View.INVISIBLE);
+        textFaceDetectStatus.setVisibility(View.INVISIBLE);
     }
 }

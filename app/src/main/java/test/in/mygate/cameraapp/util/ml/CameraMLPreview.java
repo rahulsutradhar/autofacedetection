@@ -10,6 +10,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.hardware.Camera;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -46,11 +47,13 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private volatile Camera.Size mPreviewSize;
     private Context mContext;
     private Activity mActivity;
+    private Canvas mCanvas;
 
     private int measuredWidth = 0, measuredHeight = 0;
 
     private volatile boolean isPreviewRunning = false;
     private int cameraId = -1;
+    private volatile boolean isRemoveFrame = false;
 
     // for checking the orientation
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
@@ -138,8 +141,12 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             mCamera.setParameters(parameters);
             mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
             mCamera.setPreviewCallback(this);
+            if ( Build.VERSION.SDK_INT > 17 ) {
+                mCamera.enableShutterSound(true);
+            }
             requestLayout();
             isPreviewRunning = true;
+            isRemoveFrame = false;
             mCamera.startPreview();
 
         } catch ( IOException e ) {
@@ -186,8 +193,12 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                 mCamera.setDisplayOrientation(GeneralHelper.getCameraDisplayOrientation());
                 mCamera.setPreviewCallback(this);
                 mCamera.setPreviewDisplay(mHolder);
+                if ( Build.VERSION.SDK_INT > 17 ) {
+                    mCamera.enableShutterSound(true);
+                }
                 requestLayout();
                 isPreviewRunning = true;
+                isRemoveFrame = false;
                 mCamera.startPreview();
 
             } catch ( Exception e ) {
@@ -264,15 +275,23 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     @Override
     protected void onDraw( Canvas canvas ) {
         super.onDraw(canvas);
+        mCanvas = canvas;
         Log.i(TAG, "onDRAW CALLED()");
 
-        //draw Photo frame
-        drawPhotoFrame(canvas);
+        //of this is false then draw canvas
+        if ( !isRemoveFrame ) {
+            //draw Photo frame
+            drawPhotoFrame(canvas);
 
-        //Draw a center focus point
-        drawCenterFocusPoint(canvas);
-
-
+            //Draw a center focus point
+            drawCenterFocusPoint(canvas);
+        }
+        //if boolean is true then Remove the Canvas drawn
+        else {
+            Paint clearPaint = new Paint();
+            clearPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            canvas.drawRect(0, 0, measuredWidth, measuredHeight, clearPaint);
+        }
     }
 
     /**
@@ -540,7 +559,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
                     .setModeType(FirebaseVisionFaceDetectorOptions.ACCURATE_MODE)
                     .setLandmarkType(FirebaseVisionFaceDetectorOptions.ALL_LANDMARKS)
                     .setClassificationType(FirebaseVisionFaceDetectorOptions.ALL_CLASSIFICATIONS)
-                    .setMinFaceSize(0.25f)
+                    .setMinFaceSize(0.26f)
                     .setTrackingEnabled(true)
                     .build();
 
@@ -644,6 +663,15 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
      */
     private void handleNoFaceDetected() {
         noFaceDetectedInFrame.noFaceDetected();
+    }
+
+    /**
+     * This removes the canvas drawn
+     */
+    public void removeFrame() {
+        //TODO Remove Frame
+        isRemoveFrame = true;
+        invalidate();
     }
 
     /**
