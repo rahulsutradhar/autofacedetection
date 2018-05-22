@@ -1,13 +1,12 @@
 package test.in.mygate.cameraapp;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.hardware.Camera;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -21,7 +20,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import test.in.mygate.cameraapp.events.FaceDetect;
 import test.in.mygate.cameraapp.util.AppConstant;
@@ -55,7 +53,8 @@ public class CameraActivity extends AppCompatActivity {
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
         super.onCreate(savedInstanceState);
-
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_camera);
 
         cameraActivity = this;
@@ -163,7 +162,7 @@ public class CameraActivity extends AppCompatActivity {
             /**
              * increase the zoom label: until this condition is false
              */
-            if ( zoomLabel < AppConstant.MAX_ZOOM_CAMERA ) {
+            if ( zoomLabel < AppConstant.MAX_CAMERA_ZOOM_AVAILABLE ) {
                 Log.i(TAG, "GO ZOOM IN");
                 zoomLabel++;
                 zoomInCamera(zoomLabel);
@@ -266,19 +265,6 @@ public class CameraActivity extends AppCompatActivity {
             }
 
             try {
-                //convert byte array to bitmap
-               /* Bitmap bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.length);
-
-                Matrix matrix = new Matrix();
-                matrix.postRotate(90F);
-                Bitmap newBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-
-                //convert bitmap to byte array
-                int bytes = newBitmap.getByteCount();
-                ByteBuffer buffer = ByteBuffer.allocate(bytes); //Create a new buffer
-                newBitmap.copyPixelsToBuffer(buffer);
-                byte[] array = buffer.array();*/
-
 
                 FileOutputStream fos = new FileOutputStream(pictureFile);
                 fos.write(imageData);
@@ -339,6 +325,6 @@ public class CameraActivity extends AppCompatActivity {
      * @return
      */
     public int getAreaOfPreview() {
-        return (cameraPreviewLayout.getWidth() * cameraPreviewLayout.getHeight());
+        return (AppConstant.WIDTH_PREVIEW * AppConstant.HEIGHT_PREVIEW);
     }
 }

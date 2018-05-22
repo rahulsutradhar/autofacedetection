@@ -19,17 +19,18 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 
+import test.in.mygate.cameraapp.ml.CameraMLActivity;
 import test.in.mygate.cameraapp.util.GeneralHelper;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button cameraOpenButton;
+    private Button cameraOpenButton, cameraMLButton;
     private static final int CODE_WRITE_SETTINGS_PERMISSION = 332;
     private static String[] PERMISSIONS_ALL = { Manifest.permission.CAMERA,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.READ_EXTERNAL_STORAGE };
     private static final int PERMISSION_REQUEST_CODE = 223;
-
+    private boolean normalCamera = false;
 
     @Override
     protected void onCreate( Bundle savedInstanceState ) {
@@ -66,22 +67,36 @@ public class MainActivity extends AppCompatActivity {
 
     private void setViews() {
         cameraOpenButton = (Button) findViewById(R.id.camera_button);
+        cameraMLButton = (Button) findViewById(R.id.camera_button_ml);
 
         cameraOpenButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick( View v ) {
-                if ( GeneralHelper.checkCameraHardware(getApplicationContext()) ) {
-                    //now take permission
-                    if ( checkRuntimePermission() ) {
-                        openCameraActivity();
-                    }
-
-                } else {
-                    Toast.makeText(getApplicationContext(), "Camera is not available" +
-                            " for this device", Toast.LENGTH_SHORT).show();
-                }
+                normalCamera = true;
+                handleCameraButtonClick();
             }
         });
+
+        cameraMLButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick( View v ) {
+                normalCamera = false;
+                handleCameraButtonClick();
+            }
+        });
+    }
+
+    private void handleCameraButtonClick() {
+        if ( GeneralHelper.checkCameraHardware(getApplicationContext()) ) {
+            //now take permission
+            if ( checkRuntimePermission() ) {
+                openCameraActivity();
+            }
+
+        } else {
+            Toast.makeText(getApplicationContext(), "Camera is not available" +
+                    " for this device", Toast.LENGTH_SHORT).show();
+        }
     }
 
 
@@ -112,8 +127,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openCameraActivity() {
-        Intent intent = new Intent(MainActivity.this, CameraActivity.class);
-        startActivity(intent);
+        if ( normalCamera ) {
+            Intent intent = new Intent(MainActivity.this, CameraActivity.class);
+            startActivity(intent);
+        } else {
+            Intent intent = new Intent(MainActivity.this, CameraMLActivity.class);
+            startActivity(intent);
+        }
+
     }
 
     @Override
