@@ -6,18 +6,28 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
+import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import test.in.mygate.cameraapp.util.ml.Utils;
 
 import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE;
 import static android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO;
@@ -154,21 +164,49 @@ public class GeneralHelper {
      * @param data
      * @return
      */
-    public static byte[] rotate( byte[] data ) {
+    public static Bitmap rotate( byte[] data ) {
         Matrix matrix = new Matrix();
         //Device.getOrientation() is used in order to support the emulator and an actual device
         matrix.postRotate(getCameraDisplayOrientation());
         Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
         if ( bitmap.getWidth() < bitmap.getHeight() ) {
             //no rotation needed
-            return data;
+            return bitmap;
         }
         Bitmap rotatedBitmap = Bitmap.createBitmap(
                 bitmap, 0, 0, bitmap.getWidth(),
                 bitmap.getHeight(), matrix, true
         );
-        ByteArrayOutputStream blob = new ByteArrayOutputStream();
+        /*ByteArrayOutputStream blob = new ByteArrayOutputStream();
         rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, blob);
+        byte[] bm = blob.toByteArray();
+*/
+        return rotatedBitmap;
+    }
+
+    /**
+     * Crop image
+     *
+     * @param rotatedImage
+     * @return
+     */
+    public static byte[] cropImage( Bitmap rotatedImage ) {
+
+        // Bitmap sourceBitmap = BitmapFactory.decodeByteArray(rotatedImage, 0, rotatedImage.length);
+
+       /* Bitmap targetBitmap = Bitmap.createBitmap(rotatedImage, Utils.getFrameDistanceLeft(), Utils.getFrameDistanceTop(),
+                Utils.getPhotoFrame().width(), Utils.getPhotoFrame().height());
+*/
+        Bitmap targetBitmap = cropImageBitmap(rotatedImage, Utils.getFrameDistanceLeft(), Utils.getFrameDistanceTop(),
+                Utils.getPhotoFrame().width(), Utils.getPhotoFrame().height());
+
+        if ( targetBitmap == null ) {
+            Log.i("CROPIMAGE", "BITMAP IS NULL");
+        }
+
+
+        ByteArrayOutputStream blob = new ByteArrayOutputStream();
+        targetBitmap.compress(Bitmap.CompressFormat.JPEG, 100, blob);
         byte[] bm = blob.toByteArray();
 
         return bm;
@@ -182,4 +220,55 @@ public class GeneralHelper {
     public static int getCameraDisplayOrientation() {
         return cameraDisplayOrientation;
     }
+
+
+    /**
+     * This method crops the Source Bitmap to a new Bitmap (subset)
+     *
+     * @param srcBitmap    : source of the bitmap which need to be croped
+     * @param startX       : starting distance from Left of the srcBitmap
+     * @param startY       : starting distance from Top of the srcBitmap
+     * @param targetWidth  : width of the new Bitmap that is need to be croped
+     * @param targetHeight : height of the new Bitmap that is need to be croped
+     * @return : null if conditions doesnot match else the Croped Bitmap
+     */
+    public static Bitmap cropImageBitmap( Bitmap srcBitmap, int startX, int startY,
+                                          int targetWidth, int targetHeight ) {
+
+        int widthSrcBitmap = srcBitmap.getWidth();
+        int heightSrcBitmap = srcBitmap.getHeight();
+
+        //check if start left is a valid position in the srcBitmap
+        if ( startX < 0 || startX > widthSrcBitmap ) {
+            return null;
+        }
+
+        //check if start Top is a valid position in the srcBitmap
+        if ( startY < 0 || startY > heightSrcBitmap ) {
+            return null;
+        }
+
+        //check if desire crop width exist in the source srcBitmap
+        int requireWidth = startX + targetWidth;
+        if ( requireWidth < 0 || requireWidth > widthSrcBitmap ) {
+            return null;
+        }
+
+        //check if desire height exist in source the srcBitmap
+        int requireHeight = startY + targetHeight;
+        if ( requireHeight < 0 || requireHeight > heightSrcBitmap ) {
+            return null;
+        }
+
+        /**
+         * Since all the condition is passed that means, desire co-ordinate exist in the bitmap
+         * So, now we can create a subset of the SourceBitmap
+         */
+        Bitmap cropedBitmap = Bitmap.createBitmap(srcBitmap, startX, startY,
+                targetWidth, targetHeight);
+
+        return cropedBitmap;
+    }
+
+
 }

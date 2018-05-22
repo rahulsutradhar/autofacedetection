@@ -50,6 +50,7 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     private Canvas mCanvas;
 
     private int measuredWidth = 0, measuredHeight = 0;
+    private int actualWidth = 0, actualHeight = 0;
 
     private volatile boolean isPreviewRunning = false;
     private int cameraId = -1;
@@ -236,7 +237,8 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
 
         final int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
         final int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
-
+        actualWidth = width;
+        actualHeight = height;
 
         if ( mSupportedPreviewSizes != null ) {
             mPreviewSize = getOptimalPreviewSize(mSupportedPreviewSizes, width, height);
@@ -262,8 +264,8 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
             invalidate();
 
             //set the values of the preview screen
-            Utils.setPreviewHeight(measuredHeight);
-            Utils.setPreviewWidth(measuredWidth);
+            Utils.setPreviewHeight(actualHeight);
+            Utils.setPreviewWidth(actualWidth);
         }
     }
 
@@ -303,12 +305,12 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
      */
     protected void drawPhotoFrame( Canvas canvas ) {
         //Frame Calcutlations Width
-        int frameWidth = ((measuredWidth * AppConstant.FRAME_WIDTH_PERCENT) / 100);
-        int extraSpaceEachSizeWidth = ((measuredWidth * (100 - AppConstant.FRAME_WIDTH_PERCENT)) / 100) / 2;
+        int frameWidth = ((actualWidth * AppConstant.FRAME_WIDTH_PERCENT) / 100);
+        int extraSpaceEachSizeWidth = ((actualWidth * (100 - AppConstant.FRAME_WIDTH_PERCENT)) / 100) / 2;
 
         //Frame Calcutlations height
-        int frameHeight = ((measuredHeight * AppConstant.FRAME_HEIGHT_PERCENT) / 100);
-        int extraSpaceEachSizeHeight = ((measuredHeight * (100 - AppConstant.FRAME_HEIGHT_PERCENT)) / 100) / 2;
+        int frameHeight = ((actualHeight * AppConstant.FRAME_HEIGHT_PERCENT) / 100);
+        int extraSpaceEachSizeHeight = ((actualHeight * (100 - AppConstant.FRAME_HEIGHT_PERCENT)) / 100) / 2;
 
         //set the end position for the frame
         Utils.setFrameDistanceLeft(extraSpaceEachSizeWidth);
@@ -375,17 +377,13 @@ public class CameraMLPreview extends SurfaceView implements SurfaceHolder.Callba
     protected void drawCenterFocusPoint( Canvas canvas ) {
 
         //calcutalate the measurement
-        int centerFrameWidth = (measuredWidth / 2);
-        int centerFrameHeight = (measuredHeight / 2);
+        int centerFrameWidth = (actualWidth / 2);
+        int centerFrameHeight = (actualHeight / 2);
         int spaceConstant = 10;
 
         //center position distance
         Utils.setFrameCenterWidth(centerFrameWidth);
         Utils.setFrameCenterHeight(centerFrameHeight);
-
-        // height and width of the preview screen
-        Utils.setPreviewWidth(measuredWidth);
-        Utils.setPreviewHeight(measuredHeight);
 
         Log.i(TAG, "Center Co-Ordinate: WIDTH : " + centerFrameWidth + "\nHEIGHT: " + centerFrameHeight);
 

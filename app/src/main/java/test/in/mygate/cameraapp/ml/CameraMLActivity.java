@@ -1,6 +1,7 @@
 package test.in.mygate.cameraapp.ml;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.media.AudioManager;
@@ -156,8 +157,9 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
 
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(GeneralHelper.rotate(imageData));
-                //fos.write(imageData);
+                Bitmap rotatedImage = GeneralHelper.rotate(imageData);
+                byte[] cropedImage = GeneralHelper.cropImage(rotatedImage);
+                fos.write(cropedImage);
                 fos.close();
 
                 //broadcast the gallery
@@ -209,18 +211,19 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         textFaceAreaStatus.setText("Face need to cover " + AppConstant.MIN_FACE_PERCENT +
                 "% of Frame Area and Aligh with center");
         textFaceAreaStatus.setTextColor(getResources().getColor(R.color.color_white));
+        textFaceAreaStatus.setVisibility(View.INVISIBLE);
 
         textFaceDirectionStatus.setText("Please put face inside the frame");
         textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_white));
+        textFaceDirectionStatus.setVisibility(View.VISIBLE);
 
         textFaceFocusStatus.setText("Face Need to be focused at Center Point");
         textFaceFocusStatus.setTextColor(getResources().getColor(R.color.color_white));
+        textFaceFocusStatus.setVisibility(View.INVISIBLE);
 
         textFaceCurrentStatus.setText("Face need to be Straight");
         textFaceCurrentStatus.setTextColor(getResources().getColor(R.color.color_white));
-
-        textFaceDirectionStatus.setText("Face need to be Straight");
-        textFaceDirectionStatus.setTextColor(getResources().getColor(R.color.color_white));
+        textFaceCurrentStatus.setVisibility(View.INVISIBLE);
 
         faceStatusLayout.setVisibility(View.VISIBLE);
         textFaceDetectStatus.setVisibility(View.VISIBLE);
@@ -259,8 +262,26 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
         textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_yellow));
         afterClickedLayout.setVisibility(View.INVISIBLE);
 
-        verifyFaceStatus(firebaseVisionFace.get(0));
+        // verifyFaceStatus(firebaseVisionFace.get(0));
+
+        verifyFrame(firebaseVisionFace.get(0));
     }
+
+    /**
+     * Check If photo is inside frame
+     *
+     * @param face
+     */
+    private void verifyFrame( FirebaseVisionFace face ) {
+        //this verify of face is inside frame
+        if ( verifyFaceInsideFrame(face) ) {
+            AppConstant.LOCK_FRAME = false;
+
+            //click photo
+            takePhotoAndCrop();
+        }
+    }
+
 
     /**
      * This method check the condition for different case for the face
@@ -595,7 +616,25 @@ public class CameraMLActivity extends AppCompatActivity implements FaceDetectedI
      * This removes the view from the camera
      */
     private void clearView() {
-        mMLPreview.removeFrame();
+        //mMLPreview.removeFrame();
         faceStatusLayout.setVisibility(View.INVISIBLE);
+    }
+
+
+    private void takePhotoAndCrop() {
+        if ( mCamera != null ) {
+            if ( mMLPreview != null ) {
+                if ( mMLPreview.isPreviewRunning() ) {
+
+                    mCamera.takePicture(mShutterCallback, null, mPicture);
+
+                    //show UI
+                    clearView();
+                    textFaceDetectStatus.setText("Clicked, please choose options");
+                    textFaceDetectStatus.setTextColor(getResources().getColor(R.color.color_green));
+                    afterClickedLayout.setVisibility(View.VISIBLE);
+                }
+            }
+        }
     }
 }
