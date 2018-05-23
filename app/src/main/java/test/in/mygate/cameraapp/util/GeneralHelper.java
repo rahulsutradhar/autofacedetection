@@ -6,21 +6,14 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
-import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -40,8 +33,8 @@ public class GeneralHelper {
 
     private volatile static int cameraDisplayOrientation = 0;
 
-    public static boolean checkCameraHardware( Context context ) {
-        if ( context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA) ) {
+    public static boolean checkCameraHardware(Context context) {
+        if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA)) {
             // this device has a camera
             return true;
         } else {
@@ -57,7 +50,7 @@ public class GeneralHelper {
         Camera c = null;
         try {
             c = Camera.open(); // attempt to get a Camera instance
-        } catch ( Exception e ) {
+        } catch (Exception e) {
             // Camera is not available (in use or does not exist)
         }
         return c; // returns null if camera is unavailable
@@ -66,7 +59,7 @@ public class GeneralHelper {
     /**
      * Create a File for saving an image or video
      */
-    public static File getOutputMediaFile( int type ) {
+    public static File getOutputMediaFile(int type) {
         // To be safe, you should check that the SDCard is mounted
         // using Environment.getExternalStorageState() before doing this.
 
@@ -76,8 +69,8 @@ public class GeneralHelper {
         // between applications and persist after your app has been uninstalled.
 
         // Create the storage directory if it does not exist
-        if ( !mediaStorageDir.exists() ) {
-            if ( !mediaStorageDir.mkdirs() ) {
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
                 Log.d("MyCameraApp", "failed to create directory");
                 return null;
             }
@@ -86,10 +79,10 @@ public class GeneralHelper {
         // Create a media file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
-        if ( type == MEDIA_TYPE_IMAGE ) {
+        if (type == MEDIA_TYPE_IMAGE) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                     "IMG_" + timeStamp + ".jpg");
-        } else if ( type == MEDIA_TYPE_VIDEO ) {
+        } else if (type == MEDIA_TYPE_VIDEO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator +
                     "VID_" + timeStamp + ".mp4");
         } else {
@@ -104,9 +97,9 @@ public class GeneralHelper {
      *
      * @param context
      */
-    public static void broadCastGalery( Context context, File outputFile ) {
+    public static void broadCastGalery(Context context, File outputFile) {
 
-        if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             final Intent scanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
             final Uri contentUri = Uri.fromFile(outputFile);
             scanIntent.setData(contentUri);
@@ -122,7 +115,7 @@ public class GeneralHelper {
      * @param activity
      * @param cameraId
      */
-    public static void setCameraDisplayOrientation( Activity activity, int cameraId ) {
+    public static void setCameraDisplayOrientation(Activity activity, int cameraId) {
         android.hardware.Camera.CameraInfo info =
                 new android.hardware.Camera.CameraInfo();
 
@@ -130,7 +123,7 @@ public class GeneralHelper {
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         int degrees = 0;
 
-        switch ( rotation ) {
+        switch (rotation) {
             case Surface.ROTATION_0:
                 degrees = 0;
                 break;
@@ -146,7 +139,7 @@ public class GeneralHelper {
         }
 
         int result;
-        if ( info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT ) {
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
             result = (info.orientation + degrees) % 360;
             result = (360 - result) % 360;  // compensate the mirror
         } else {  // back-facing
@@ -164,12 +157,12 @@ public class GeneralHelper {
      * @param data
      * @return
      */
-    public static Bitmap rotate( byte[] data ) {
+    public static Bitmap rotate(byte[] data) {
         Matrix matrix = new Matrix();
         //Device.getOrientation() is used in order to support the emulator and an actual device
         matrix.postRotate(getCameraDisplayOrientation());
         Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-        if ( bitmap.getWidth() < bitmap.getHeight() ) {
+        if (bitmap.getWidth() < bitmap.getHeight()) {
             //no rotation needed
             return bitmap;
         }
@@ -190,17 +183,46 @@ public class GeneralHelper {
      * @param rotatedImage
      * @return
      */
-    public static byte[] cropImage( Bitmap rotatedImage ) {
+    public static byte[] cropImage(Bitmap rotatedImage, Rect faceRect) {
 
-        // Bitmap sourceBitmap = BitmapFactory.decodeByteArray(rotatedImage, 0, rotatedImage.length);
+        int constF = 100;
+        int widthBitmap = rotatedImage.getWidth();
+        int heightBitmap = rotatedImage.getHeight();
+        int x, y, h, w;
 
-       /* Bitmap targetBitmap = Bitmap.createBitmap(rotatedImage, Utils.getFrameDistanceLeft(), Utils.getFrameDistanceTop(),
-                Utils.getPhotoFrame().width(), Utils.getPhotoFrame().height());
-*/
-        Bitmap targetBitmap = cropImageBitmap(rotatedImage, Utils.getFrameDistanceLeft(), Utils.getFrameDistanceTop(),
-                Utils.getPhotoFrame().width(), Utils.getPhotoFrame().height());
+        //get the left start index
+        if ((faceRect.left - constF) > 0) {
+            x = faceRect.left - constF;
+        } else {
+            x = 0;
+        }
 
-        if ( targetBitmap == null ) {
+        //get top start index
+        if ((faceRect.top - constF) > 0) {
+            y = faceRect.top - constF;
+        } else {
+            y = 0;
+        }
+
+        //get width
+        if ((faceRect.right + constF) > widthBitmap) {
+            w = widthBitmap;
+        } else {
+            w = faceRect.right + constF;
+        }
+
+        //get height
+        if ((faceRect.bottom + constF) > heightBitmap) {
+            h = heightBitmap;
+        } else {
+            h = faceRect.bottom + constF;
+        }
+
+        Log.d("GeneralHelper", "Face - " + faceRect + "\nNew rect " + x + ", " + y + ", " + w + ", " + h);
+
+        Bitmap targetBitmap = cropImageBitmap(rotatedImage, x, y, w, h);
+
+        if (targetBitmap == null) {
             Log.i("CROPIMAGE", "BITMAP IS NULL");
         }
 
@@ -232,31 +254,35 @@ public class GeneralHelper {
      * @param targetHeight : height of the new Bitmap that is need to be croped
      * @return : null if conditions doesnot match else the Croped Bitmap
      */
-    public static Bitmap cropImageBitmap( Bitmap srcBitmap, int startX, int startY,
-                                          int targetWidth, int targetHeight ) {
+    public static Bitmap cropImageBitmap(Bitmap srcBitmap, int startX, int startY,
+                                         int targetWidth, int targetHeight) {
+
+        if (srcBitmap == null) {
+            return null;
+        }
 
         int widthSrcBitmap = srcBitmap.getWidth();
         int heightSrcBitmap = srcBitmap.getHeight();
 
         //check if start left is a valid position in the srcBitmap
-        if ( startX < 0 || startX > widthSrcBitmap ) {
+        if (startX < 0 || startX > widthSrcBitmap) {
             return null;
         }
 
         //check if start Top is a valid position in the srcBitmap
-        if ( startY < 0 || startY > heightSrcBitmap ) {
+        if (startY < 0 || startY > heightSrcBitmap) {
             return null;
         }
 
         //check if desire crop width exist in the source srcBitmap
         int requireWidth = startX + targetWidth;
-        if ( requireWidth < 0 || requireWidth > widthSrcBitmap ) {
+        if (requireWidth < 0 || requireWidth > widthSrcBitmap) {
             return null;
         }
 
         //check if desire height exist in source the srcBitmap
         int requireHeight = startY + targetHeight;
-        if ( requireHeight < 0 || requireHeight > heightSrcBitmap ) {
+        if (requireHeight < 0 || requireHeight > heightSrcBitmap) {
             return null;
         }
 
